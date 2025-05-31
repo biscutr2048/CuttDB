@@ -291,12 +291,14 @@ struct AddRecordView: View {
                             set: { fieldValues["name"] = $0 }
                         ))
                         .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .frame(height: 30)
                         
                         TextField("Age", text: Binding(
                             get: { fieldValues["age"] ?? "" },
                             set: { fieldValues["age"] = $0 }
                         ))
                         .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .frame(height: 30)
                     }
                     .padding()
                     .background(Color(NSColor.windowBackgroundColor))
@@ -314,24 +316,28 @@ struct AddRecordView: View {
                             set: { fieldValues["email"] = $0 }
                         ))
                         .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .frame(height: 30)
                         
                         TextField("Phone", text: Binding(
                             get: { fieldValues["phone"] ?? "" },
                             set: { fieldValues["phone"] = $0 }
                         ))
                         .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .frame(height: 30)
                         
                         TextField("Address", text: Binding(
                             get: { fieldValues["address"] ?? "" },
                             set: { fieldValues["address"] = $0 }
                         ))
                         .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .frame(height: 30)
                         
                         TextField("Score", text: Binding(
                             get: { fieldValues["score"] ?? "" },
                             set: { fieldValues["score"] = $0 }
                         ))
                         .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .frame(height: 30)
                     }
                     .padding()
                     .background(Color(NSColor.windowBackgroundColor))
@@ -340,6 +346,7 @@ struct AddRecordView: View {
                 }
                 .padding()
             }
+            .frame(minWidth: 400, minHeight: 500)
             .navigationTitle("Add New Record")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -401,16 +408,30 @@ struct EditRecordView: View {
     
     var body: some View {
         NavigationView {
-            Form {
-                Section(header: Text("Edit Record")) {
-                    ForEach(Array(record.keys.sorted().filter { $0 != "id" && $0 != "created_at" }), id: \.self) { key in
-                        TextField(key.capitalized, text: Binding(
-                            get: { fieldValues[key] ?? "" },
-                            set: { fieldValues[key] = $0 }
-                        ))
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Edit Record")
+                            .font(.headline)
+                            .padding(.bottom, 5)
+                        
+                        ForEach(Array(record.keys.sorted().filter { $0 != "id" && $0 != "created_at" }), id: \.self) { key in
+                            TextField(key.capitalized, text: Binding(
+                                get: { fieldValues[key] ?? "" },
+                                set: { fieldValues[key] = $0 }
+                            ))
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                            .frame(height: 30)
+                        }
                     }
+                    .padding()
+                    .background(Color(NSColor.windowBackgroundColor))
+                    .cornerRadius(10)
+                    .shadow(radius: 1)
                 }
+                .padding()
             }
+            .frame(minWidth: 400, minHeight: 500)
             .navigationTitle("Edit Record #\(record["id"] as? Int64 ?? 0)")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
