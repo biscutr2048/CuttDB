@@ -190,4 +190,33 @@ class CuttDBService {
         let query = "DELETE FROM \(tableName) WHERE \(whereClause)"
         return executeQuery(query)
     }
+    
+    /// 获取表结构
+    func getTableColumns(tableName: String) -> [(name: String, type: String)]? {
+        let query = "PRAGMA table_info(\(tableName))"
+        var columns: [(name: String, type: String)] = []
+        
+        var statement: OpaquePointer?
+        
+        if sqlite3_prepare_v2(db, query, -1, &statement, nil) == SQLITE_OK {
+            while sqlite3_step(statement) == SQLITE_ROW {
+                // cid, name, type, notnull, dflt_value, pk
+                if let namePtr = sqlite3_column_text(statement, 1),
+                   let typePtr = sqlite3_column_text(statement, 2) {
+                    let name = String(cString: namePtr)
+                    let type = String(cString: typePtr)
+                    columns.append((name: name, type: type))
+                }
+            }
+            sqlite3_finalize(statement)
+            return columns
+        }
+        
+        if let errorMessage = String(validatingUTF8: sqlite3_errmsg(db)) {
+            print("Error getting table structure: \(errorMessage)")
+        }
+        
+        sqlite3_finalize(statement)
+        return nil
+    }
 } 
