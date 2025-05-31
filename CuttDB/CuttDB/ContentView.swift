@@ -97,7 +97,7 @@ struct ContentView: View {
                                     .foregroundColor(.red)
                             }
                             .buttonStyle(.bordered)
-                            .tint(.red)
+                                    .tint(.red)
                         }
                     }
                     .padding(.horizontal)
@@ -183,7 +183,6 @@ struct ContentView: View {
     
     private func ensureTableExists() -> Bool {
         // 检查表是否存在
-        let checkTableSQL = "SELECT name FROM sqlite_master WHERE type='table' AND name='\(DBConfig.tableName)'"
         let results = dbService.select(
             tableName: "sqlite_master",
             columns: ["name"],
@@ -278,15 +277,77 @@ struct AddRecordView: View {
     
     var body: some View {
         NavigationView {
-            Form {
-                Section(header: Text("Add New Record")) {
-                    ForEach(columns, id: \.name) { column in
-                        TextField(column.name.capitalized, text: Binding(
-                            get: { fieldValues[column.name] ?? "" },
-                            set: { fieldValues[column.name] = $0 }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    // 主要信息部分
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Add New Record")
+                            .font(.headline)
+                            .padding(.bottom, 5)
+                        
+                        // 只显示 name 和 age 字段，其他字段设为可选
+                        TextField("Name", text: Binding(
+                            get: { fieldValues["name"] ?? "" },
+                            set: { fieldValues["name"] = $0 }
                         ))
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        
+                        TextField("Age", text: Binding(
+                            get: { fieldValues["age"] ?? "" },
+                            set: { fieldValues["age"] = $0 }
+                        ))
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .autocapitalization(.none)
+                        .keyboardType(.numberPad)
                     }
+                    .padding()
+                    .background(Color(NSColor.windowBackgroundColor))
+                    .cornerRadius(10)
+                    .shadow(radius: 1)
+                    
+                    // 附加信息部分
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Additional Information (Optional)")
+                            .font(.headline)
+                            .padding(.bottom, 5)
+                        
+                        TextField("Email", text: Binding(
+                            get: { fieldValues["email"] ?? "" },
+                            set: { fieldValues["email"] = $0 }
+                        ))
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .autocapitalization(.none)
+                        .keyboardType(.emailAddress)
+                        
+                        TextField("Phone", text: Binding(
+                            get: { fieldValues["phone"] ?? "" },
+                            set: { fieldValues["phone"] = $0 }
+                        ))
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .autocapitalization(.none)
+                        .keyboardType(.phonePad)
+                        
+                        TextField("Address", text: Binding(
+                            get: { fieldValues["address"] ?? "" },
+                            set: { fieldValues["address"] = $0 }
+                        ))
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .autocapitalization(.none)
+                        
+                        TextField("Score", text: Binding(
+                            get: { fieldValues["score"] ?? "" },
+                            set: { fieldValues["score"] = $0 }
+                        ))
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .autocapitalization(.none)
+                        .keyboardType(.numberPad)
+                    }
+                    .padding()
+                    .background(Color(NSColor.windowBackgroundColor))
+                    .cornerRadius(10)
+                    .shadow(radius: 1)
                 }
+                .padding()
             }
             .navigationTitle("Add New Record")
             .toolbar {
