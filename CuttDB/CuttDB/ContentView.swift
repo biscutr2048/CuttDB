@@ -297,8 +297,6 @@ struct AddRecordView: View {
                             set: { fieldValues["age"] = $0 }
                         ))
                         .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .autocapitalization(.none)
-                        .keyboardType(.numberPad)
                     }
                     .padding()
                     .background(Color(NSColor.windowBackgroundColor))
@@ -316,31 +314,24 @@ struct AddRecordView: View {
                             set: { fieldValues["email"] = $0 }
                         ))
                         .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .autocapitalization(.none)
-                        .keyboardType(.emailAddress)
                         
                         TextField("Phone", text: Binding(
                             get: { fieldValues["phone"] ?? "" },
                             set: { fieldValues["phone"] = $0 }
                         ))
                         .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .autocapitalization(.none)
-                        .keyboardType(.phonePad)
                         
                         TextField("Address", text: Binding(
                             get: { fieldValues["address"] ?? "" },
                             set: { fieldValues["address"] = $0 }
                         ))
                         .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .autocapitalization(.none)
                         
                         TextField("Score", text: Binding(
                             get: { fieldValues["score"] ?? "" },
                             set: { fieldValues["score"] = $0 }
                         ))
                         .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .autocapitalization(.none)
-                        .keyboardType(.numberPad)
                     }
                     .padding()
                     .background(Color(NSColor.windowBackgroundColor))
