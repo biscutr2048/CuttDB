@@ -1,7 +1,7 @@
 import Foundation
 import SQLite3
 
-class DatabaseService {
+class CuttDBService {
     private var db: OpaquePointer?
     private let dbPath: String
     
@@ -95,13 +95,17 @@ class DatabaseService {
     }
     
     /// 查询数据
-    func select(tableName: String, columns: [String] = ["*"], whereClause: String? = nil) -> [[String: Any]] {
+    func select(tableName: String, columns: [String] = ["*"], whereClause: String? = nil, orderBy: String? = nil) -> [[String: Any]] {
         var results: [[String: Any]] = []
         let columnsStr = columns.joined(separator: ", ")
         var query = "SELECT \(columnsStr) FROM \(tableName)"
         
         if let whereClause = whereClause {
             query += " WHERE \(whereClause)"
+        }
+        
+        if let orderBy = orderBy {
+            query += " ORDER BY \(orderBy)"
         }
         
         var statement: OpaquePointer?
