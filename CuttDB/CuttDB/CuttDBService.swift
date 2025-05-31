@@ -1,3 +1,10 @@
+//
+//  CuttDBApp.swift
+//  CuttDB
+//
+//  Created by BISCUTR@QQ.COM on 2025/5/30.
+//
+
 import Foundation
 import SQLite3
 

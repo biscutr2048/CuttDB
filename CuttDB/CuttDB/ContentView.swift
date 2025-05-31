@@ -2,7 +2,7 @@
 //  ContentView.swift
 //  CuttDB
 //
-//  Created by SHIJIAN on 2025/5/30.
+//  Created by BISCUTR@QQ.COM on 2025/5/30.
 //
 
 import SwiftUI
