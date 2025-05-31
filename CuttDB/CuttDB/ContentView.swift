@@ -184,7 +184,11 @@ struct ContentView: View {
     private func ensureTableExists() -> Bool {
         // 检查表是否存在
         let checkTableSQL = "SELECT name FROM sqlite_master WHERE type='table' AND name='\(DBConfig.tableName)'"
-        let results = dbService.executeQuery(checkTableSQL)
+        let results = dbService.select(
+            tableName: "sqlite_master",
+            columns: ["name"],
+            whereClause: "type='table' AND name='\(DBConfig.tableName)'"
+        )
         
         if results.isEmpty {
             // 表不存在，创建表
