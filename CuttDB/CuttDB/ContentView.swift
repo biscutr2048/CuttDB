@@ -14,10 +14,6 @@ struct DBConfig {
         ("id", "INTEGER PRIMARY KEY AUTOINCREMENT"),
         ("name", "TEXT NOT NULL"),
         ("age", "INTEGER"),
-        ("email", "TEXT"),
-        ("phone", "TEXT"),
-        ("address", "TEXT"),
-        ("score", "INTEGER"),
         ("created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
     ]
     
@@ -43,8 +39,8 @@ struct ContentView: View {
         
         var description: String {
             switch self {
-            case .ascending: return "Oldest First"
-            case .descending: return "Newest First"
+            case .ascending: return "Early"
+            case .descending: return "New"
             }
         }
         
@@ -63,8 +59,8 @@ struct ContentView: View {
             
             HStack(spacing: 20) {
                 Button(action: { showAddSheet = true }) {
-                    Text("Add New Data")
-                        .frame(width: 100, height: 100)
+                    Text("Add")
+                        .frame(width: 72, height: 72)
                         .multilineTextAlignment(.center)
                         .lineLimit(nil)
                         .fixedSize(horizontal: false, vertical: true)
@@ -72,8 +68,8 @@ struct ContentView: View {
                 .buttonStyle(.borderedProminent)
                 
                 Button(action: queryTestData) {
-                    Text("Query Test Data")
-                        .frame(width: 100, height: 100)
+                    Text("Query")
+                        .frame(width: 72, height: 72)
                         .multilineTextAlignment(.center)
                         .lineLimit(nil)
                         .fixedSize(horizontal: false, vertical: true)
@@ -104,55 +100,66 @@ struct ContentView: View {
                     .onChange(of: sortOrder) { _ in
                         queryTestData()
                     }
+                    .frame(maxWidth: 400)
                     
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 10) {
-                            ForEach(0..<queryResults.count, id: \.self) { index in
-                                if let id = queryResults[index]["id"] as? Int64 {
-                                    HStack(alignment: .top, spacing: 15) {
-                                        Text("#\(id)")
-                                            .font(.headline)
-                                            .foregroundColor(.gray)
-                                            .frame(width: 50, alignment: .leading)
-                                        
-                                        VStack(alignment: .leading, spacing: 5) {
-                                            ForEach(Array(queryResults[index].keys.sorted().filter { $0 != "id" }), id: \.self) { key in
-                                                if let value = queryResults[index][key] {
-                                                    HStack(alignment: .top) {
-                                                        Text("\(key):")
-                                                            .fontWeight(.medium)
-                                                        Text("\(String(describing: value))")
+                    ZStack {
+                        Color.clear
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    selectedId = nil
+                                }
+                            }
+                        
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: 10) {
+                                ForEach(0..<queryResults.count, id: \.self) { index in
+                                    if let id = queryResults[index]["id"] as? Int64 {
+                                        HStack(alignment: .top, spacing: 15) {
+                                            Text("#\(id)")
+                                                .font(.headline)
+                                                .foregroundColor(.gray)
+                                                .frame(width: 50, alignment: .leading)
+                                            
+                                            VStack(alignment: .leading, spacing: 5) {
+                                                ForEach(Array(queryResults[index].keys.sorted().filter { $0 != "id" }), id: \.self) { key in
+                                                    if let value = queryResults[index][key] {
+                                                        HStack(alignment: .top) {
+                                                            Text("\(key):")
+                                                                .fontWeight(.medium)
+                                                            Text("\(String(describing: value))")
+                                                        }
                                                     }
                                                 }
                                             }
-                                        }
-                                        .padding()
-                                        .background(selectedId == id ? Color.blue.opacity(0.1) : Color.gray.opacity(0.1))
-                                        .cornerRadius(8)
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 8)
-                                                .stroke(selectedId == id ? Color.blue : Color.clear, lineWidth: 2)
-                                        )
-                                        .gesture(
-                                            TapGesture(count: 1)
-                                                .onEnded { _ in
-                                                    withAnimation(.easeInOut(duration: 0.2)) {
-                                                        selectedId = selectedId == id ? nil : id
+                                            .padding()
+                                            .background(selectedId == id ? Color.blue.opacity(0.1) : Color.gray.opacity(0.1))
+                                            .cornerRadius(8)
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 8)
+                                                    .stroke(selectedId == id ? Color.blue : Color.clear, lineWidth: 2)
+                                            )
+                                            .gesture(
+                                                TapGesture(count: 1)
+                                                    .onEnded { _ in
+                                                        withAnimation(.easeInOut(duration: 0.2)) {
+                                                            selectedId = selectedId == id ? nil : id
+                                                        }
                                                     }
-                                                }
-                                        )
-                                        .simultaneousGesture(
-                                            TapGesture(count: 2)
-                                                .onEnded { _ in
-                                                    editingRecord = queryResults[index]
-                                                    showEditSheet = true
-                                                }
-                                        )
+                                            )
+                                            .simultaneousGesture(
+                                                TapGesture(count: 2)
+                                                    .onEnded { _ in
+                                                        editingRecord = queryResults[index]
+                                                        showEditSheet = true
+                                                    }
+                                            )
+                                        }
                                     }
                                 }
                             }
+                            .padding()
                         }
-                        .padding()
                     }
                     .frame(maxHeight: .infinity)
                 }
@@ -173,40 +180,25 @@ struct ContentView: View {
             EditRecordView(record: $editingRecord, onSave: { updatedRecord in
                 updateRecord(updatedRecord)
             })
+            .modifier(SheetModifier())
         }
         .sheet(isPresented: $showAddSheet) {
             AddRecordView(columns: DBConfig.editableColumns) { newRecord in
                 insertNewRecord(newRecord)
             }
+            .modifier(SheetModifier())
         }
-    }
-    
-    private func ensureTableExists() -> Bool {
-        // 检查表是否存在
-        let results = dbService.select(
-            tableName: "sqlite_master",
-            columns: ["name"],
-            whereClause: "type='table' AND name='\(DBConfig.tableName)'"
-        )
-        
-        if results.isEmpty {
-            // 表不存在，创建表
-            let columns = DBConfig.columns.map { "\($0.name) \($0.type)" }
-            if dbService.createTable(tableName: DBConfig.tableName, columns: columns) {
-                message = "Table created successfully"
-                return true
-            } else {
-                message = "Failed to create table"
-                return false
-            }
+        .onAppear {
+            queryTestData()
         }
-        return true
     }
     
     private func insertNewRecord(_ record: [String: Any]) {
-        guard ensureTableExists() else { return }
-        
-        if dbService.insert(tableName: DBConfig.tableName, values: record) {
+        let columns = DBConfig.columns.map { "\($0.name) \($0.type)" }
+        let success = dbService.executeWithTable(tableName: DBConfig.tableName, columns: columns) {
+            dbService.insert(tableName: DBConfig.tableName, values: record)
+        }
+        if success {
             message = "Data inserted successfully"
             queryTestData()
         } else {
@@ -215,22 +207,27 @@ struct ContentView: View {
     }
     
     private func queryTestData() {
-        guard ensureTableExists() else { return }
-        
-        let results = dbService.select(
-            tableName: DBConfig.tableName,
-            columns: ["*"],
-            whereClause: nil,
-            orderBy: "created_at \(sortOrder.sqlOrder), id \(sortOrder.sqlOrder)"
-        )
-        if !results.isEmpty {
+        let columns = DBConfig.columns.map { "\($0.name) \($0.type)" }
+        var results: [[String: Any]] = []
+        let success = dbService.executeWithTable(tableName: DBConfig.tableName, columns: columns) {
+            results = dbService.select(
+                tableName: DBConfig.tableName,
+                columns: ["*"],
+                whereClause: nil,
+                orderBy: "created_at \(sortOrder.sqlOrder), id \(sortOrder.sqlOrder)"
+            )
+            return true
+        }
+        if success && !results.isEmpty {
             message = "Found \(results.count) records"
             queryResults = results
             selectedId = nil
-        } else {
+        } else if success {
             message = "No records found"
             queryResults = []
             selectedId = nil
+        } else {
+            message = "Failed to ensure table exists"
         }
     }
     
@@ -305,44 +302,6 @@ struct AddRecordView: View {
                     .cornerRadius(10)
                     .shadow(radius: 1)
                     
-                    // 附加信息部分
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Additional Information (Optional)")
-                            .font(.headline)
-                            .padding(.bottom, 5)
-                        
-                        TextField("Email", text: Binding(
-                            get: { fieldValues["email"] ?? "" },
-                            set: { fieldValues["email"] = $0 }
-                        ))
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .frame(height: 30)
-                        
-                        TextField("Phone", text: Binding(
-                            get: { fieldValues["phone"] ?? "" },
-                            set: { fieldValues["phone"] = $0 }
-                        ))
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .frame(height: 30)
-                        
-                        TextField("Address", text: Binding(
-                            get: { fieldValues["address"] ?? "" },
-                            set: { fieldValues["address"] = $0 }
-                        ))
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .frame(height: 30)
-                        
-                        TextField("Score", text: Binding(
-                            get: { fieldValues["score"] ?? "" },
-                            set: { fieldValues["score"] = $0 }
-                        ))
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .frame(height: 30)
-                    }
-                    .padding()
-                    .background(Color(NSColor.windowBackgroundColor))
-                    .cornerRadius(10)
-                    .shadow(radius: 1)
                 }
                 .padding()
             }
@@ -366,6 +325,7 @@ struct AddRecordView: View {
                 Text(alertMessage)
             }
         }
+        .navigationViewStyle(.automatic)
     }
     
     private func saveRecord() {
@@ -463,9 +423,22 @@ struct EditRecordView: View {
                 }
             }
         }
+        .navigationViewStyle(.automatic)
     }
 }
 
 #Preview {
     ContentView()
+}
+
+struct SheetModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(macOS 13.0, *) {
+            content
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.hidden)
+        } else {
+            content
+        }
+    }
 }

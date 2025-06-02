@@ -37,6 +37,39 @@ class CuttDBService {
     
     // MARK: - 数据库操作
     
+    /// 检查表是否存在
+    private func tableExists(_ tableName: String) -> Bool {
+        let results = select(
+            tableName: "sqlite_master",
+            columns: ["name"],
+            whereClause: "type='table' AND name='\(tableName)'"
+        )
+        return !results.isEmpty
+    }
+    
+    /// 确保表存在，如果不存在则创建
+    private func ensureTableExists(tableName: String, columns: [String]) -> Bool {
+        if !tableExists(tableName) {
+            // 表不存在，创建表
+            if createTable(tableName: tableName, columns: columns) {
+                print("Table \(tableName) created successfully")
+                return true
+            } else {
+                print("Failed to create table \(tableName)")
+                return false
+            }
+        }
+        return true
+    }
+    
+    /// 执行数据库操作，确保表存在
+    func executeWithTable(tableName: String, columns: [String], operation: () -> Bool) -> Bool {
+        if ensureTableExists(tableName: tableName, columns: columns) {
+            return operation()
+        }
+        return false
+    }
+    
     /// 执行 SQL 语句
     func executeQuery(_ query: String) -> Bool {
         var statement: OpaquePointer?
