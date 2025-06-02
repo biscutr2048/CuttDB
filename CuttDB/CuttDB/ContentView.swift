@@ -273,16 +273,27 @@ struct AddRecordView: View {
     @State private var alertMessage: String = ""
     
     var body: some View {
-        NavigationView {
+        VStack(spacing: 0) {
+            // 自定义标题栏
+            HStack {
+                Text("Add New Record")
+                    .font(.headline)
+                Spacer()
+                HStack(spacing: 12) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                    Button("Save") {
+                        saveRecord()
+                    }
+                }
+            }
+            .padding()
+            .background(Color(NSColor.windowBackgroundColor))
+            
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    // 主要信息部分
                     VStack(alignment: .leading, spacing: 10) {
-                        Text("Add New Record")
-                            .font(.headline)
-                            .padding(.bottom, 5)
-                        
-                        // 只显示 name 和 age 字段，其他字段设为可选
                         TextField("Name", text: Binding(
                             get: { fieldValues["name"] ?? "" },
                             set: { fieldValues["name"] = $0 }
@@ -301,31 +312,16 @@ struct AddRecordView: View {
                     .background(Color(NSColor.windowBackgroundColor))
                     .cornerRadius(10)
                     .shadow(radius: 1)
-                    
                 }
                 .padding()
             }
-            .frame(minWidth: 400, minHeight: 500)
-            .navigationTitle("Add New Record")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        saveRecord()
-                    }
-                }
-            }
-            .alert("Validation Error", isPresented: $showAlert) {
-                Button("OK", role: .cancel) { }
-            } message: {
-                Text(alertMessage)
-            }
         }
-        .navigationViewStyle(.automatic)
+        .frame(minWidth: 400, minHeight: 500)
+        .alert("Validation Error", isPresented: $showAlert) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(alertMessage)
+        }
     }
     
     private func saveRecord() {
@@ -367,14 +363,36 @@ struct EditRecordView: View {
     @State private var fieldValues: [String: String] = [:]
     
     var body: some View {
-        NavigationView {
+        VStack(spacing: 0) {
+            // 自定义标题栏
+            HStack {
+                Text("Edit Record #\(record["id"] as? Int64 ?? 0)")
+                    .font(.headline)
+                Spacer()
+                HStack(spacing: 12) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                    Button("Save") {
+                        var updatedRecord = record
+                        for (key, value) in fieldValues {
+                            if let intValue = Int(value) {
+                                updatedRecord[key] = intValue
+                            } else {
+                                updatedRecord[key] = value
+                            }
+                        }
+                        onSave(updatedRecord)
+                        dismiss()
+                    }
+                }
+            }
+            .padding()
+            .background(Color(NSColor.windowBackgroundColor))
+            
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     VStack(alignment: .leading, spacing: 10) {
-                        Text("Edit Record")
-                            .font(.headline)
-                            .padding(.bottom, 5)
-                        
                         ForEach(Array(record.keys.sorted().filter { $0 != "id" && $0 != "created_at" }), id: \.self) { key in
                             TextField(key.capitalized, text: Binding(
                                 get: { fieldValues[key] ?? "" },
@@ -391,39 +409,16 @@ struct EditRecordView: View {
                 }
                 .padding()
             }
-            .frame(minWidth: 400, minHeight: 500)
-            .navigationTitle("Edit Record #\(record["id"] as? Int64 ?? 0)")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        var updatedRecord = record
-                        for (key, value) in fieldValues {
-                            if let intValue = Int(value) {
-                                updatedRecord[key] = intValue
-                            } else {
-                                updatedRecord[key] = value
-                            }
-                        }
-                        onSave(updatedRecord)
-                        dismiss()
-                    }
-                }
-            }
-            .onAppear {
-                // 初始化所有字段的值
-                for (key, value) in record {
-                    if key != "id" && key != "created_at" {
-                        fieldValues[key] = String(describing: value)
-                    }
+        }
+        .frame(minWidth: 400, minHeight: 500)
+        .onAppear {
+            // 初始化所有字段的值
+            for (key, value) in record {
+                if key != "id" && key != "created_at" {
+                    fieldValues[key] = String(describing: value)
                 }
             }
         }
-        .navigationViewStyle(.automatic)
     }
 }
 
