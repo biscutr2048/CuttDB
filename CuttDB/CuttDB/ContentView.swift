@@ -67,7 +67,7 @@ struct ContentView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 
-                Button(action: queryTestData) {
+                Button(action: queryDBList) {
                     Text("Query")
                         .frame(width: 72, height: 72)
                         .multilineTextAlignment(.center)
@@ -98,7 +98,7 @@ struct ContentView: View {
                     }
                     .padding(.horizontal)
                     .onChange(of: sortOrder) { _ in
-                        queryTestData()
+                        queryDBList()
                     }
                     .frame(maxWidth: 400)
                     
@@ -189,7 +189,7 @@ struct ContentView: View {
             .modifier(SheetModifier())
         }
         .onAppear {
-            queryTestData()
+            queryDBList()
         }
     }
     
@@ -200,13 +200,13 @@ struct ContentView: View {
         }
         if success {
             message = "Data inserted successfully"
-            queryTestData()
+            queryDBList()
         } else {
             message = "Failed to insert data"
         }
     }
     
-    private func queryTestData() {
+    private func queryDBList() {
         let columns = DBConfig.columns.map { "\($0.name) \($0.type)" }
         var results: [[String: Any]] = []
         let success = dbService.executeWithTable(tableName: DBConfig.tableName, columns: columns) {
@@ -236,7 +236,7 @@ struct ContentView: View {
         
         if dbService.delete(tableName: DBConfig.tableName, whereClause: "id = \(id)") {
             message = "Record #\(id) deleted successfully"
-            queryTestData() // 刷新数据
+            queryDBList() // 刷新数据
         } else {
             message = "Failed to delete record #\(id)"
         }
@@ -256,7 +256,7 @@ struct ContentView: View {
             whereClause: "id = \(id)"
         ) {
             message = "Record #\(id) updated successfully"
-            queryTestData() // 刷新数据
+            queryDBList() // 刷新数据
         } else {
             message = "Failed to update record #\(id)"
         }
