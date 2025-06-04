@@ -276,4 +276,16 @@ class CuttDBService {
         let results = select(tableName: tableName, columns: ["*"], whereClause: nil, orderBy: "created_at DESC, id DESC")
         return results.first
     }
+    
+    /// 恢复子表的response数据
+    /// - Parameters:
+    ///   - api: 接口字符串
+    ///   - method: 方法字符串
+    ///   - property: 列表属性名
+    /// - Returns: 子表所有数据数组（[[String: Any]]），无数据返回空数组
+    func restoreSubTableResponse(api: String, method: String, property: String) -> [[String: Any]] {
+        let mainTable = CuttDB.requestIndexKey(api: api, method: method)
+        let subTable = "\(mainTable)-sub-\(property)"
+        return select(tableName: subTable, columns: ["*"])
+    }
 } 
