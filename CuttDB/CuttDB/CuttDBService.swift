@@ -252,4 +252,16 @@ class CuttDBService {
         sqlite3_finalize(statement)
         return nil
     }
+    
+    /// 判断某表主键值是否已存在
+    /// - Parameters:
+    ///   - tableName: 表名
+    ///   - primaryKey: 主键字段名，默认"id"
+    ///   - value: 主键值
+    /// - Returns: 存在返回true，否则false
+    func primaryKeyExists(tableName: String, primaryKey: String = "id", value: Any) -> Bool {
+        let whereClause = "\(primaryKey) = '" + String(describing: value) + "'"
+        let results = select(tableName: tableName, columns: [primaryKey], whereClause: whereClause)
+        return !results.isEmpty
+    }
 } 
