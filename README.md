@@ -75,7 +75,6 @@ a sqlite3 access automation model
 
 - 需要自动管理SQLite表结构、自动处理response数据、自动生成SQL语句的开发者
 - 需要离线恢复response、自动处理列表属性、自动建子表的开发者
-- 需要自动识别主键、自动判断主键存在性、自动生成insert/update SQL的开发者
 
 ---
 
