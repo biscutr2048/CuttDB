@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXFileReference section */
-		9507E7732DE9CCE600B26422 /* CuttDB.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = CuttDB.app; path = /Users/shijian/swiftdev/CuttDB/CuttDB/build/Debug/CuttDB.app; sourceTree = "<absolute>"; };
+		95038A5E2DF002D200CE756D /* CuttDB.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CuttDB.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -33,6 +33,7 @@
 			isa = PBXGroup;
 			children = (
 				9507E7752DE9CCE600B26422 /* CuttDB */,
+				95038A5E2DF002D200CE756D /* CuttDB.app */,
 			);
 			sourceTree = "<group>";
 		};
@@ -58,7 +59,7 @@
 			packageProductDependencies = (
 			);
 			productName = CuttDB;
-			productReference = 9507E7732DE9CCE600B26422 /* CuttDB.app */;
+			productReference = 95038A5E2DF002D200CE756D /* CuttDB.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
