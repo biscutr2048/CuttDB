@@ -10,6 +10,26 @@ struct CuttDB {
     static func requestIndexKey(api: String, method: String) -> String {
         return "\(api)_\(method)".replacingOccurrences(of: "[^A-Za-z0-9_]", with: "", options: .regularExpression)
     }
+    
+    /// 从 JSON 结构提取表格定义
+    /// - Parameter json: 任意 JSON 对象（通常为 [String: Any]）
+    /// - Returns: [(字段名, 字段类型)]，嵌套结构类型为 TEXT，内容为 json 字符串
+    static func extractTableDefinition(from json: Any) -> [(name: String, type: String)] {
+        guard let dict = json as? [String: Any] else { return [] }
+        var fields: [(String, String)] = []
+        for (key, value) in dict {
+            if value is String || value is Int || value is Double || value is Bool || value is NSNull {
+                fields.append((key, "TEXT"))
+            } else if value is [Any] || value is [String: Any] {
+                // 嵌套结构直接用 TEXT 存 json 字符串
+                fields.append((key, "TEXT"))
+            } else {
+                // 其他未知类型也按 TEXT 处理
+                fields.append((key, "TEXT"))
+            }
+        }
+        return fields
+    }
 }
 
 // 示例测试
@@ -19,5 +39,35 @@ func testRequestIndexKey() {
     print(key1) // userlist_GET
     let key2 = CuttDB.requestIndexKey(api: "order-detail", method: "post")
     print(key2) // orderdetail_post
+}
+
+func testExtractTableDefinition() {
+    let json: [String: Any] = [
+        "id": 123,
+        "name": "Alice",
+        "profile": [
+            "age": 30,
+            "city": "Beijing",
+            "contact": [
+                "email": "alice@example.com",
+                "phone": "123456"
+            ]
+        ],
+        "tags": ["swift", "macos"],
+        "meta": NSNull(),
+        "history": [
+            [
+                "date": "2024-06-01",
+                "action": "login"
+            ],
+            [
+                "date": "2024-06-02",
+                "action": "logout"
+            ]
+        ]
+    ]
+    let def = CuttDB.extractTableDefinition(from: json)
+    print(def)
+    // 期望输出: [("id", "TEXT"), ("name", "TEXT"), ("profile", "TEXT"), ("tags", "TEXT"), ("meta", "TEXT"), ("history", "TEXT")]
 }
 #endif 
