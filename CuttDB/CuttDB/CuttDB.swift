@@ -87,6 +87,53 @@ struct CuttDB {
             return sql
         }
     }
+    
+    /// 处理response中包含列表属性的情况，自动为每个列表属性建立子表并生成SQL
+    /// - Parameters:
+    ///   - api: 接口字符串
+    ///   - method: 方法字符串
+    ///   - json: 一条response的json数据（[String: Any]）
+    ///   - dbService: CuttDBService实例
+    /// - Returns: [子表表名: [SQL语句字符串]]
+    static func handleListProperties(api: String, method: String, json: [String: Any], dbService: CuttDBService) -> [String: [String]] {
+        let mainTable = requestIndexKey(api: api, method: method)
+        var result: [String: [String]] = [:]
+        for (key, value) in json {
+            guard let list = value as? [Any], !list.isEmpty else { continue }
+            // 子表名：主表-requestnamed-sub-属性名
+            let subTable = "\(mainTable)-sub-\(key)"
+            var sqls: [String] = []
+            for item in list {
+                guard let itemDict = item as? [String: Any] else { continue }
+                // 自动建表结构
+                let tableDef = extractTableDefinition(from: itemDict)
+                // 自动识别主键
+                let fields = tableDef.map { $0.name }
+                let primaryKey = fields.first(where: { $0.lowercased() == "id" }) ?? fields.first(where: { $0.lowercased().hasSuffix("id") })
+                var keyExists = false
+                var pkValue: Any? = nil
+                if let pk = primaryKey, let v = itemDict[pk] {
+                    pkValue = v
+                    keyExists = dbService.primaryKeyExists(tableName: subTable, primaryKey: pk, value: v)
+                }
+                // 生成SQL
+                if keyExists, let pk = primaryKey, let v = pkValue {
+                    let setClause = fields.filter { $0 != pk && itemDict[$0] != nil }.map { "\($0) = '" + String(describing: itemDict[$0]!) + "'" }.joined(separator: ", ")
+                    let sql = "UPDATE \(subTable) SET \(setClause) WHERE \(pk) = '" + String(describing: v) + "'"
+                    sqls.append(sql)
+                } else {
+                    let insertFields = fields.filter { itemDict[$0] != nil }
+                    let insertValues = insertFields.map { "'" + String(describing: itemDict[$0]!) + "'" }
+                    let sql = "INSERT INTO \(subTable) (\(insertFields.joined(separator: ", "))) VALUES (\(insertValues.joined(separator: ", ")))"
+                    sqls.append(sql)
+                }
+            }
+            if !sqls.isEmpty {
+                result[subTable] = sqls
+            }
+        }
+        return result
+    }
 }
 
 // 示例测试

@@ -264,4 +264,16 @@ class CuttDBService {
         let results = select(tableName: tableName, columns: [primaryKey], whereClause: whereClause)
         return !results.isEmpty
     }
+    
+    /// 恢复最近一次response数据
+    /// - Parameters:
+    ///   - api: 接口字符串
+    ///   - method: 方法字符串
+    /// - Returns: 最近一次应答数据（[String: Any]），无数据返回nil
+    func restoreLastResponse(api: String, method: String) -> [String: Any]? {
+        let tableName = CuttDB.requestIndexKey(api: api, method: method)
+        // 优先按created_at、id倒序，取最新一条
+        let results = select(tableName: tableName, columns: ["*"], whereClause: nil, orderBy: "created_at DESC, id DESC")
+        return results.first
+    }
 } 

@@ -26,6 +26,13 @@ a sqlite3 access automation model
     * local object load
     * local object save
 
+## patch for listing
+    * listing recog
+    * listing auto sub-table
+    * listing update / insert
+    * listing query / paged
+    * listing recover response
+
 ## upgrade auto
     * upgrade destination table from source table auto align
     * matched turning
