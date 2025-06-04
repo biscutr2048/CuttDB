@@ -67,3 +67,25 @@ a sqlite3 access automation model
 | upgrade destination table from source table auto align | ➡️ | 未见表结构自动升级逻辑 |
 | matched turning | ❓ | 需求不明确，无法判断 |
 | drop missing | ➡️ | 未见自动删除缺失字段/表逻辑 |
+
+---
+
+
+## 适用用户
+
+- 需要自动管理SQLite表结构、自动处理response数据、自动生成SQL语句的开发者
+- 需要离线恢复response、自动处理列表属性、自动建子表的开发者
+- 需要自动识别主键、自动判断主键存在性、自动生成insert/update SQL的开发者
+
+---
+
+
+## MIT授权声明
+
+Copyright (c) 2025 BISCUTR
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. 
