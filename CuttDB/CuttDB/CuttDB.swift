@@ -31,16 +31,16 @@ struct CuttDB {
         return fields
     }
     
-    /// 根据表定义和响应数据生成SQL语句（insert或update）
+    /// 根据响应数据自动提取表定义、自动识别主键并判断主键是否存在，生成SQL语句（insert或update），表名自动用requestIndexKey生成
     /// - Parameters:
-    ///   - tableName: 业务表名
+    ///   - api: 接口字符串
+    ///   - method: 方法字符串
     ///   - json: 一条response的json数据（[String: Any]）
-    ///   - tableDefinition: 表格定义 [(字段名, 字段类型)]
-    ///   - primaryKey: 主键字段名，默认"id"
-    ///   - keyExists: 主键是否已存在（外部可通过查询判断）
+    ///   - dbService: CuttDBService实例，用于主键存在性判断
     /// - Returns: 生成的SQL语句字符串
-    static func generateSQL(tableName: String, json: [String: Any], tableDefinition: [(name: String, type: String)], primaryKey: String = "id", keyExists: Bool) -> String? {
-        // 只处理表定义中存在的字段
+    static func generateSQL(api: String, method: String, json: [String: Any], dbService: CuttDBService) -> String? {
+        let tableName = requestIndexKey(api: api, method: method)
+        let tableDefinition = extractTableDefinition(from: json)
         let fields = tableDefinition.map { $0.name }
         var values: [String: Any] = [:]
         for field in fields {
@@ -59,11 +59,18 @@ struct CuttDB {
                 }
             }
         }
-        
-        if keyExists, let pkValue = values[primaryKey] {
+        // 自动识别主键字段，优先id，其次以id结尾
+        let primaryKey = fields.first(where: { $0.lowercased() == "id" }) ?? fields.first(where: { $0.lowercased().hasSuffix("id") })
+        var keyExists = false
+        var pkValue: Any? = nil
+        if let pk = primaryKey, let v = values[pk] {
+            pkValue = v
+            keyExists = dbService.primaryKeyExists(tableName: tableName, primaryKey: pk, value: v)
+        }
+        if keyExists, let pk = primaryKey, let v = pkValue {
             // update语句
-            let setClause = fields.filter { $0 != primaryKey && values[$0] != nil }.map { "\($0) = '" + String(describing: values[$0]!) + "'" }.joined(separator: ", ")
-            let sql = "UPDATE \(tableName) SET \(setClause) WHERE \(primaryKey) = '" + String(describing: pkValue) + "'"
+            let setClause = fields.filter { $0 != pk && values[$0] != nil }.map { "\($0) = '" + String(describing: values[$0]!) + "'" }.joined(separator: ", ")
+            let sql = "UPDATE \(tableName) SET \(setClause) WHERE \(pk) = '" + String(describing: v) + "'"
             return sql
         } else {
             // insert语句
