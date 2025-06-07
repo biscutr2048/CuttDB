@@ -43,6 +43,8 @@ a sqlite3 access automation model
         ** iOS 2020
         ** macos 11
 
+## processing（2025-06-04）
+![CuttDB Processing](cuttdb_feature_0607.png)
 
 ## processing（2025-06-04）
 
