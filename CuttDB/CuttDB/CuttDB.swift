@@ -134,44 +134,4 @@ struct CuttDB {
         }
         return result
     }
-}
-
-// 示例测试
-#if DEBUG
-func testRequestIndexKey() {
-    let key1 = CuttDB.requestIndexKey(api: "/user/list", method: "GET")
-    print(key1) // userlist_GET
-    let key2 = CuttDB.requestIndexKey(api: "order-detail", method: "post")
-    print(key2) // orderdetail_post
-}
-
-func testExtractTableDefinition() {
-    let json: [String: Any] = [
-        "id": 123,
-        "name": "Alice",
-        "profile": [
-            "age": 30,
-            "city": "Beijing",
-            "contact": [
-                "email": "alice@example.com",
-                "phone": "123456"
-            ]
-        ],
-        "tags": ["swift", "macos"],
-        "meta": NSNull(),
-        "history": [
-            [
-                "date": "2024-06-01",
-                "action": "login"
-            ],
-            [
-                "date": "2024-06-02",
-                "action": "logout"
-            ]
-        ]
-    ]
-    let def = CuttDB.extractTableDefinition(from: json)
-    print(def)
-    // 期望输出: [("id", "TEXT"), ("name", "TEXT"), ("profile", "TEXT"), ("tags", "TEXT"), ("meta", "TEXT"), ("history", "TEXT")]
-}
-#endif 
+} 
