@@ -35,9 +35,10 @@ class CuttDBService {
         }
     }
     
-    // MARK: - 数据库操作
-    
-    /// 检查表是否存在
+    // MARK: - Create Module
+    /// 模块：create
+    /// 需求：auto.create when need, if not exists
+    /// 功能：检查表是否存在
     private func tableExists(_ tableName: String) -> Bool {
         let results = select(
             tableName: "sqlite_master",
@@ -47,7 +48,9 @@ class CuttDBService {
         return !results.isEmpty
     }
     
-    /// 确保表存在，如果不存在则创建
+    /// 模块：create
+    /// 需求：auto.create when need, if not exists
+    /// 功能：确保表存在，如果不存在则创建
     private func ensureTableExists(tableName: String, columns: [String]) -> Bool {
         if !tableExists(tableName) {
             // 表不存在，创建表
@@ -62,7 +65,9 @@ class CuttDBService {
         return true
     }
     
-    /// 执行数据库操作，确保表存在
+    /// 模块：create
+    /// 需求：auto.create when need, if not exists
+    /// 功能：执行数据库操作，确保表存在
     func executeWithTable(tableName: String, columns: [String], operation: () -> Bool) -> Bool {
         if ensureTableExists(tableName: tableName, columns: columns) {
             return operation()
@@ -70,26 +75,9 @@ class CuttDBService {
         return false
     }
     
-    /// 执行 SQL 语句
-    func executeQuery(_ query: String) -> Bool {
-        var statement: OpaquePointer?
-        
-        if sqlite3_prepare_v2(db, query, -1, &statement, nil) == SQLITE_OK {
-            if sqlite3_step(statement) == SQLITE_DONE {
-                sqlite3_finalize(statement)
-                return true
-            }
-        }
-        
-        if let errorMessage = String(validatingUTF8: sqlite3_errmsg(db)) {
-            print("Error executing query: \(errorMessage)")
-        }
-        
-        sqlite3_finalize(statement)
-        return false
-    }
-    
-    /// 创建表
+    /// 模块：create
+    /// 需求：auto.create when need, if not exists
+    /// 功能：创建表
     func createTable(tableName: String, columns: [String]) -> Bool {
         let query = """
             CREATE TABLE IF NOT EXISTS \(tableName) (
@@ -99,7 +87,10 @@ class CuttDBService {
         return executeQuery(query)
     }
     
-    /// 插入数据
+    // MARK: - Insert Module
+    /// 模块：insert
+    /// 需求：op.save object to insert sql
+    /// 功能：插入数据
     func insert(tableName: String, values: [String: Any]) -> Bool {
         let columns = values.keys.joined(separator: ", ")
         let placeholders = String(repeating: "?,", count: values.count - 1) + "?"
@@ -134,7 +125,10 @@ class CuttDBService {
         return false
     }
     
-    /// 查询数据
+    // MARK: - Select Module
+    /// 模块：select
+    /// 需求：mech.load response local.offline
+    /// 功能：查询数据
     func select(tableName: String, columns: [String] = ["*"], whereClause: String? = nil, orderBy: String? = nil) -> [[String: Any]] {
         var results: [[String: Any]] = []
         let columnsStr = columns.joined(separator: ", ")
@@ -184,7 +178,10 @@ class CuttDBService {
         return results
     }
     
-    /// 更新数据
+    // MARK: - Update Module
+    /// 模块：update
+    /// 需求：op.save object to update sql
+    /// 功能：更新数据
     func update(tableName: String, values: [String: Any], whereClause: String) -> Bool {
         let setClause = values.keys.map { "\($0) = ?" }.joined(separator: ", ")
         let query = "UPDATE \(tableName) SET \(setClause) WHERE \(whereClause)"
@@ -218,13 +215,40 @@ class CuttDBService {
         return false
     }
     
-    /// 删除数据
+    // MARK: - Delete Module
+    /// 模块：delete
+    /// 需求：op.delete update to aged
+    /// 功能：删除数据
     func delete(tableName: String, whereClause: String) -> Bool {
         let query = "DELETE FROM \(tableName) WHERE \(whereClause)"
         return executeQuery(query)
     }
     
-    /// 获取表结构
+    // MARK: - Mechanism Module
+    /// 模块：mechanism
+    /// 需求：pair table to req, obj_list, paged
+    /// 功能：执行 SQL 语句
+    func executeQuery(_ query: String) -> Bool {
+        var statement: OpaquePointer?
+        
+        if sqlite3_prepare_v2(db, query, -1, &statement, nil) == SQLITE_OK {
+            if sqlite3_step(statement) == SQLITE_DONE {
+                sqlite3_finalize(statement)
+                return true
+            }
+        }
+        
+        if let errorMessage = String(validatingUTF8: sqlite3_errmsg(db)) {
+            print("Error executing query: \(errorMessage)")
+        }
+        
+        sqlite3_finalize(statement)
+        return false
+    }
+    
+    /// 模块：mechanism
+    /// 需求：pair table to req, obj_list, paged
+    /// 功能：获取表结构
     func getTableColumns(tableName: String) -> [(name: String, type: String)]? {
         let query = "PRAGMA table_info(\(tableName))"
         var columns: [(name: String, type: String)] = []
@@ -253,15 +277,12 @@ class CuttDBService {
         return nil
     }
     
-    /// 判断某表主键值是否已存在
-    /// - Parameters:
-    ///   - tableName: 表名
-    ///   - primaryKey: 主键字段名，默认"id"
-    ///   - value: 主键值
-    /// - Returns: 存在返回true，否则false
-    func primaryKeyExists(tableName: String, primaryKey: String = "id", value: Any) -> Bool {
-        let whereClause = "\(primaryKey) = '" + String(describing: value) + "'"
-        let results = select(tableName: tableName, columns: [primaryKey], whereClause: whereClause)
+    /// 模块：mechanism
+    /// 需求：pair table to req, obj_list, paged
+    /// 功能：检查主键是否存在
+    func primaryKeyExists(tableName: String, primaryKey: String, value: Any) -> Bool {
+        let whereClause = "\(primaryKey) = '\(value)'"
+        let results = select(tableName: tableName, whereClause: whereClause)
         return !results.isEmpty
     }
     

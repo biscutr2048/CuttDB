@@ -8,21 +8,10 @@
 import Foundation
 
 #if DEBUG
-// MARK: - Test Cases
-func testRequestIndexKey() {
-    // Test case 1: Basic API path with GET method
-    let key1 = CuttDB.requestIndexKey(api: "/user/list", method: "GET")
-    print("Test 1 - Basic API path:", key1) // Expected: userlist_GET
-    
-    // Test case 2: API path with hyphens and lowercase method
-    let key2 = CuttDB.requestIndexKey(api: "order-detail", method: "post")
-    print("Test 2 - Hyphenated path:", key2) // Expected: orderdetail_post
-    
-    // Test case 3: API path with special characters
-    let key3 = CuttDB.requestIndexKey(api: "user/profile/123", method: "PUT")
-    print("Test 3 - Special characters:", key3) // Expected: userprofile123_PUT
-}
-
+// MARK: - Create Module Tests
+/// 模块：create
+/// 需求：auto.get create sql
+/// 功能：测试从 JSON 结构提取表格定义
 func testExtractTableDefinition() {
     // Test case: Complex JSON structure
     let json: [String: Any] = [
@@ -55,6 +44,10 @@ func testExtractTableDefinition() {
     // Expected output: [("id", "TEXT"), ("name", "TEXT"), ("profile", "TEXT"), ("tags", "TEXT"), ("meta", "TEXT"), ("history", "TEXT")]
 }
 
+// MARK: - Insert/Update Module Tests
+/// 模块：insert/update
+/// 需求：op.save object to insert sql, op.save object to update sql
+/// 功能：测试生成 SQL 语句
 func testGenerateSQL() {
     // Create a mock CuttDBService
     let mockDBService = MockCuttDBService()
@@ -75,6 +68,10 @@ func testGenerateSQL() {
     print("Test 2 - Update SQL:", updateSQL ?? "nil")
 }
 
+// MARK: - List Properties Module Tests
+/// 模块：create
+/// 需求：auto.create sub-table when listing
+/// 功能：测试处理列表属性
 func testHandleListProperties() {
     // Create a mock CuttDBService
     let mockDBService = MockCuttDBService()
@@ -93,7 +90,28 @@ func testHandleListProperties() {
     print("List Properties Result:", result)
 }
 
+// MARK: - Mechanism Module Tests
+/// 模块：mechanism
+/// 需求：pair table to req, obj_list, paged
+/// 功能：测试请求索引词生成
+func testRequestIndexKey() {
+    // Test case 1: Basic API path with GET method
+    let key1 = CuttDB.requestIndexKey(api: "/user/list", method: "GET")
+    print("Test 1 - Basic API path:", key1) // Expected: userlist_GET
+    
+    // Test case 2: API path with hyphens and lowercase method
+    let key2 = CuttDB.requestIndexKey(api: "order-detail", method: "post")
+    print("Test 2 - Hyphenated path:", key2) // Expected: orderdetail_post
+    
+    // Test case 3: API path with special characters
+    let key3 = CuttDB.requestIndexKey(api: "user/profile/123", method: "PUT")
+    print("Test 3 - Special characters:", key3) // Expected: userprofile123_PUT
+}
+
 // MARK: - Mock CuttDBService
+/// 模块：mechanism
+/// 需求：pair table to req, obj_list, paged
+/// 功能：模拟数据库服务，用于测试
 class MockCuttDBService: CuttDBService {
     var shouldKeyExist = false
     
@@ -103,20 +121,21 @@ class MockCuttDBService: CuttDBService {
 }
 
 // MARK: - Run All Tests
+/// 运行所有测试用例
 func runAllTests() {
     print("\n=== Running CuttDB Tests ===\n")
     
-    print("Testing requestIndexKey...")
-    testRequestIndexKey()
-    
-    print("\nTesting extractTableDefinition...")
+    print("Testing Create Module...")
     testExtractTableDefinition()
     
-    print("\nTesting generateSQL...")
+    print("\nTesting Insert/Update Module...")
     testGenerateSQL()
     
-    print("\nTesting handleListProperties...")
+    print("\nTesting List Properties Module...")
     testHandleListProperties()
+    
+    print("\nTesting Mechanism Module...")
+    testRequestIndexKey()
     
     print("\n=== All Tests Completed ===\n")
 }

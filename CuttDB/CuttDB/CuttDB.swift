@@ -9,16 +9,10 @@ import Foundation
 
 /// 数据库业务对象管理
 struct CuttDB {
-    /// 生成请求索引词
-    /// - Parameters:
-    ///   - api: 接口字符串
-    ///   - method: 方法字符串
-    /// - Returns: 拼接后的无符号索引词（只包含字母、数字和下划线）
-    static func requestIndexKey(api: String, method: String) -> String {
-        return "\(api)_\(method)".replacingOccurrences(of: "[^A-Za-z0-9_]", with: "", options: .regularExpression)
-    }
-    
-    /// 从 JSON 结构提取表格定义
+    // MARK: - Create Module
+    /// 模块：create
+    /// 需求：auto.get create sql
+    /// 功能：从 JSON 结构提取表格定义
     /// - Parameter json: 任意 JSON 对象（通常为 [String: Any]）
     /// - Returns: [(字段名, 字段类型)]，嵌套结构类型为 TEXT，内容为 json 字符串
     static func extractTableDefinition(from json: Any) -> [(name: String, type: String)] {
@@ -38,7 +32,10 @@ struct CuttDB {
         return fields
     }
     
-    /// 根据响应数据自动提取表定义、自动识别主键并判断主键是否存在，生成SQL语句（insert或update），表名自动用requestIndexKey生成
+    // MARK: - Insert/Update Module
+    /// 模块：insert/update
+    /// 需求：op.save object to insert sql, op.save object to update sql
+    /// 功能：根据响应数据自动提取表定义、自动识别主键并判断主键是否存在，生成SQL语句（insert或update）
     /// - Parameters:
     ///   - api: 接口字符串
     ///   - method: 方法字符串
@@ -88,7 +85,10 @@ struct CuttDB {
         }
     }
     
-    /// 处理response中包含列表属性的情况，自动为每个列表属性建立子表并生成SQL
+    // MARK: - List Properties Module
+    /// 模块：create
+    /// 需求：auto.create sub-table when listing
+    /// 功能：处理response中包含列表属性的情况，自动为每个列表属性建立子表并生成SQL
     /// - Parameters:
     ///   - api: 接口字符串
     ///   - method: 方法字符串
@@ -133,5 +133,17 @@ struct CuttDB {
             }
         }
         return result
+    }
+    
+    // MARK: - Mechanism Module
+    /// 模块：mechanism
+    /// 需求：pair table to req, obj_list, paged
+    /// 功能：生成请求索引词
+    /// - Parameters:
+    ///   - api: 接口字符串
+    ///   - method: 方法字符串
+    /// - Returns: 拼接后的无符号索引词（只包含字母、数字和下划线）
+    static func requestIndexKey(api: String, method: String) -> String {
+        return "\(api)_\(method)".replacingOccurrences(of: "[^A-Za-z0-9_]", with: "", options: .regularExpression)
     }
 } 
