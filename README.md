@@ -15,40 +15,74 @@ a sqlite3 access automation model
 
 ## processing（2025-06-04）
 
-| 需求项 | 状态 | 说明 |
-|---|---|---|
-| hide on create sql | ➡️ | 表创建SQL自动生成，但"隐藏"或完全自动化还不够 |
-| find table if not exist create auto | 💯 | 已实现，自动检测并创建表 |
-| local index auto | ➡️ | 未见自动创建索引逻辑 |
-| pair table to request | 💯 | 已实现，表名自动与请求绑定 |
-| response save auto | ✅ | 可自动生成SQL，保存需手动执行 |
-| offline request mode: load response auto from | ✅ | 可恢复最近应答，离线模式需业务集成 |
-| recover spec response manual ability | 💯 | 可手动恢复指定response |
-| depends on response format, no need on a pre-defined table | 💯 | 已实现，无需预定义表 |
-| local object with property and listing | ✅ | 属性/列表自动识别，类封装不够 |
-| local object load | ✅ | 可加载对象，无专门对象模型 |
-| local object save | ✅ | 可生成保存SQL，无专门对象模型 |
-| listing recog | 💯 | 已实现，自动识别列表属性 |
-| listing auto sub-table | 💯 | 已实现，自动建子表 |
-| listing update / insert | 💯 | 已实现，自动生成SQL |
-| listing query / paged | ✅ | 可查询子表，分页未实现 |
-| listing recover response | 💯 | 已实现，子表可恢复response |
-| upgrade destination table from source table auto align | ➡️ | 未见表结构自动升级逻辑 |
-| matched turning | ❓ | 需求不明确，无法判断 |
-| drop missing | ➡️ | 未见自动删除缺失字段/表逻辑 |
+
+# requirements
+VER:0.1
+
+# create
+
+    ## auto.get create sql    ➡️
+    ## auto.create when need, if not exists    💯
+    ## auto.create sub-table when listing    ➡️
+    ## auto.index local, with listing    ➡️
+
+# select
+
+    ## mech. load response local.offline    1️⃣
+    ## auto.select object to sql    1️⃣
+    ## auto.select obj.list to sql paged    ➡️
+    ## auto.select by biz key and list    🈳
+
+# insert
+
+    ## mech.save response    1️⃣
+    ## op.save object to insert sql    💯
+    ## op.save obj.list to insert sql    ➡️
+
+# update
+
+    ## op.save object to update sql    💯
+    ## op.save obj.list to update sql    ➡️
+
+# delete
+
+    ## op.delete update to aged    🈳
+
+# PARADIGM
+
+    ## BIZ-DEF, CRUD by occasion, testing    🌰
+
+# drop
+
+    ## drop missing, testing, debug-if    ➡️
+
+# align
+
+    ## upgrade dest-table from src-table    ➡️
+
+# mechanism
+
+    ## pair table to req, obj_list, paged    💯
+    ## json object gt 3.38    🈶
+    ## vector table    🈳
+
 
 ---
 
 
-## 适用用户
+## for Users
 
-- 需要自动管理SQLite表结构、自动处理response数据、自动生成SQL语句的开发者
-- 需要离线恢复response、自动处理列表属性、自动建子表的开发者
+- manage SQLite table structs
+- need auto response process
+- gen SQL developers
+- recover response
+- deal with listing and properties, even sub-table automatically.
+
 
 ---
 
 
-## MIT授权声明
+## MIT LICENSE
 
 Copyright (c) 2025 BISCUTR
 
