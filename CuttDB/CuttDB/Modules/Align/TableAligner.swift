@@ -1,53 +1,56 @@
 import Foundation
 
-/// 表对齐管理器 - 负责表结构对齐操作
-public struct TableAligner {
+/// 表对齐器 - 负责表结构的对齐和迁移
+internal struct TableAligner {
     private let service: CuttDBService
     
-    public init(service: CuttDBService) {
+    init(service: CuttDBService) {
         self.service = service
     }
     
-    /// 升级目标表结构
+    /// 对齐表结构
     /// - Parameters:
-    ///   - sourceTable: 源表名
-    ///   - targetTable: 目标表名
-    /// - Returns: 是否升级成功
-    public func upgradeTableStructure(sourceTable: String, targetTable: String) -> Bool {
-        // 获取源表结构
-        guard let sourceColumns = getTableColumns(tableName: sourceTable) else {
-            return false
-        }
-        
-        // 获取目标表结构
-        guard let targetColumns = getTableColumns(tableName: targetTable) else {
-            return false
-        }
-        
-        // 找出需要添加的列
-        let columnsToAdd = sourceColumns.filter { !targetColumns.contains($0) }
+    ///   - tableName: 表名
+    ///   - expectedColumns: 期望的列定义
+    /// - Returns: 是否对齐成功
+    func alignTable(tableName: String, expectedColumns: [String: String]) -> Bool {
+        // 获取当前表结构
+        let currentColumns = getCurrentColumns(tableName: tableName)
         
         // 添加缺失的列
-        for column in columnsToAdd {
-            let sql = "ALTER TABLE \(targetTable) ADD COLUMN \(column) TEXT"
-            if !service.executeSQL(sql) {
-                return false
+        for (columnName, columnType) in expectedColumns {
+            if !currentColumns.contains(where: { $0.name == columnName }) {
+                let sql = "ALTER TABLE \(tableName) ADD COLUMN \(columnName) \(columnType)"
+                if !service.execute(sql: sql, parameters: nil) > 0 {
+                    return false
+                }
             }
         }
         
         return true
     }
     
-    /// 获取表的所有列
-    /// - Parameter tableName: 表名
-    /// - Returns: 列名数组
-    private func getTableColumns(tableName: String) -> [String]? {
+    /// 获取当前表的列定义
+    private func getCurrentColumns(tableName: String) -> [(name: String, type: String)] {
         let sql = "PRAGMA table_info(\(tableName))"
-        let results = service.query(sql)
+        let result = service.query(sql: sql, parameters: nil)
         
-        return results.compactMap { row in
-            row["name"] as? String
+        return result.map { row in
+            let name = row["name"] as? String ?? ""
+            let type = row["type"] as? String ?? ""
+            return (name: name, type: type)
         }
+    }
+    
+    /// 创建新表
+    /// - Parameters:
+    ///   - tableName: 表名
+    ///   - columns: 列定义
+    /// - Returns: 是否创建成功
+    func createTable(tableName: String, columns: [String: String]) -> Bool {
+        let columnDefinitions = columns.map { "\($0.key) \($0.value)" }.joined(separator: ", ")
+        let sql = "CREATE TABLE IF NOT EXISTS \(tableName) (\(columnDefinitions))"
+        return service.execute(sql: sql, parameters: nil) > 0
     }
     
     /// 删除缺失的数据

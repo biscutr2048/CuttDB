@@ -1,58 +1,49 @@
 import Foundation
 
-/// 分页查询管理器 - 负责分页查询操作
-public struct PagedQuery {
+/// 分页查询管理器 - 负责分页数据查询
+internal struct PagedQuery {
     private let service: CuttDBService
     
-    public init(service: CuttDBService) {
+    init(service: CuttDBService) {
         self.service = service
     }
     
-    /// 分页查询
+    /// 执行分页查询
     /// - Parameters:
     ///   - tableName: 表名
-    ///   - page: 页码（从1开始）
+    ///   - page: 页码
     ///   - pageSize: 每页大小
-    ///   - whereClause: 查询条件
+    ///   - whereClause: WHERE 子句
     ///   - orderBy: 排序字段
-    ///   - columns: 要查询的列
-    /// - Returns: 分页查询结果
-    public func queryPaged(tableName: String, page: Int, pageSize: Int, whereClause: String? = nil, orderBy: String? = nil, columns: [String] = ["*"]) -> (data: [[String: Any]], total: Int) {
+    /// - Returns: 分页结果
+    func queryPaged(from tableName: String, page: Int, pageSize: Int, where whereClause: String? = nil, orderBy: String? = nil) -> [[String: Any]] {
         let offset = (page - 1) * pageSize
-        let sql = generatePagedSQL(tableName: tableName, offset: offset, limit: pageSize, whereClause: whereClause, orderBy: orderBy, columns: columns)
-        let countSQL = generateCountSQL(tableName: tableName, whereClause: whereClause)
         
-        let data = service.query(sql)
-        let total = service.query(countSQL).first?["count"] as? Int ?? 0
-        
-        return (data, total)
-    }
-    
-    /// 生成分页查询SQL
-    private func generatePagedSQL(tableName: String, offset: Int, limit: Int, whereClause: String?, orderBy: String?, columns: [String]) -> String {
-        let columnsStr = columns.joined(separator: ", ")
-        var sql = "SELECT \(columnsStr) FROM \(tableName)"
-        
+        // 构建查询SQL
+        var sql = "SELECT * FROM \(tableName)"
         if let whereClause = whereClause {
             sql += " WHERE \(whereClause)"
         }
-        
         if let orderBy = orderBy {
             sql += " ORDER BY \(orderBy)"
         }
+        sql += " LIMIT \(pageSize) OFFSET \(offset)"
         
-        sql += " LIMIT \(limit) OFFSET \(offset)"
-        return sql
+        return service.query(sql: sql, parameters: nil)
     }
     
-    /// 生成计数SQL
-    private func generateCountSQL(tableName: String, whereClause: String?) -> String {
+    /// 获取总记录数
+    /// - Parameters:
+    ///   - tableName: 表名
+    ///   - whereClause: WHERE 子句
+    /// - Returns: 总记录数
+    func getTotalCount(from tableName: String, where whereClause: String? = nil) -> Int {
         var sql = "SELECT COUNT(*) as count FROM \(tableName)"
-        
         if let whereClause = whereClause {
             sql += " WHERE \(whereClause)"
         }
         
-        return sql
+        let result = service.query(sql: sql, parameters: nil)
+        return result.first?["count"] as? Int ?? 0
     }
 } 

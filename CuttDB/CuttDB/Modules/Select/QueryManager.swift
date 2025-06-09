@@ -1,62 +1,96 @@
 import Foundation
 
-/// 查询管理器
+/// 查询管理器 - 负责数据查询操作
 internal struct QueryManager {
     private let service: CuttDBService
-    private let objectQuery: ObjectQuery
-    private let listQuery: ListQuery
-    private let pagedQuery: PagedQuery
-    private let offlineQuery: OfflineQuery
     
     init(service: CuttDBService) {
         self.service = service
-        self.objectQuery = ObjectQuery(service: service)
-        self.listQuery = ListQuery(service: service)
-        self.pagedQuery = PagedQuery(service: service)
-        self.offlineQuery = OfflineQuery(service: service)
     }
     
-    /// 查询对象
-    func query<T: Codable>(from tableName: String, where condition: String? = nil, orderBy: String? = nil, limit: Int? = nil) -> [T] {
-        let results = listQuery.queryList(from: tableName, where: condition, orderBy: orderBy, limit: limit)
-        return results.compactMap { dict in
-            try? JSONSerialization.data(withJSONObject: dict)
-                .flatMap { try? JSONDecoder().decode(T.self, from: $0) }
+    /// 查询数据
+    /// - Parameters:
+    ///   - tableName: 表名
+    ///   - columns: 要查询的列
+    ///   - whereClause: WHERE 子句
+    ///   - parameters: 参数
+    /// - Returns: 查询结果
+    func query(tableName: String, columns: [String] = ["*"], whereClause: String? = nil, parameters: [Any]? = nil) -> [[String: Any]] {
+        let columnsStr = columns.joined(separator: ", ")
+        var sql = "SELECT \(columnsStr) FROM \(tableName)"
+        
+        if let whereClause = whereClause {
+            sql += " WHERE \(whereClause)"
         }
+        
+        return service.query(sql: sql, parameters: parameters)
     }
     
     /// 分页查询
-    func pagedQuery<T: Codable>(from tableName: String, page: Int, pageSize: Int, where condition: String? = nil, orderBy: String? = nil) -> [T] {
-        let results = pagedQuery.queryPaged(from: tableName, page: page, pageSize: pageSize, where: condition, orderBy: orderBy)
-        return results.compactMap { dict in
-            try? JSONSerialization.data(withJSONObject: dict)
-                .flatMap { try? JSONDecoder().decode(T.self, from: $0) }
+    /// - Parameters:
+    ///   - tableName: 表名
+    ///   - page: 页码
+    ///   - pageSize: 每页大小
+    ///   - columns: 要查询的列
+    ///   - whereClause: WHERE 子句
+    ///   - parameters: 参数
+    ///   - orderBy: 排序字段
+    /// - Returns: 分页结果
+    func queryWithPagination(tableName: String, page: Int, pageSize: Int, columns: [String] = ["*"], whereClause: String? = nil, parameters: [Any]? = nil, orderBy: String? = nil) -> [[String: Any]] {
+        let offset = (page - 1) * pageSize
+        let columnsStr = columns.joined(separator: ", ")
+        var sql = "SELECT \(columnsStr) FROM \(tableName)"
+        
+        if let whereClause = whereClause {
+            sql += " WHERE \(whereClause)"
         }
+        
+        if let orderBy = orderBy {
+            sql += " ORDER BY \(orderBy)"
+        }
+        
+        sql += " LIMIT \(pageSize) OFFSET \(offset)"
+        
+        return service.query(sql: sql, parameters: parameters)
     }
     
-    /// 离线查询
-    func offlineQuery<T: Codable>(from tableName: String, where condition: String? = nil, orderBy: String? = nil, limit: Int? = nil) -> [T] {
-        let results = offlineQuery.queryOffline(from: tableName, where: condition, orderBy: orderBy, limit: limit)
-        return results.compactMap { dict in
-            try? JSONSerialization.data(withJSONObject: dict)
-                .flatMap { try? JSONDecoder().decode(T.self, from: $0) }
+    /// 获取总记录数
+    /// - Parameters:
+    ///   - tableName: 表名
+    ///   - whereClause: WHERE 子句
+    ///   - parameters: 参数
+    /// - Returns: 总记录数
+    func getTotalCount(tableName: String, whereClause: String? = nil, parameters: [Any]? = nil) -> Int {
+        var sql = "SELECT COUNT(*) as count FROM \(tableName)"
+        
+        if let whereClause = whereClause {
+            sql += " WHERE \(whereClause)"
         }
+        
+        let result = service.query(sql: sql, parameters: parameters)
+        return result.first?["count"] as? Int ?? 0
     }
     
     /// 查询单个对象
-    func queryObject(from tableName: String, where whereClause: String) -> [String: Any]? {
-        return objectQuery.queryObject(from: tableName, where: whereClause)
+    /// - Parameters:
+    ///   - tableName: 表名
+    ///   - id: 对象ID
+    /// - Returns: 对象数据
+    func queryObject(tableName: String, id: String) -> [String: Any]? {
+        let sql = "SELECT * FROM \(tableName) WHERE id = ?"
+        let result = service.query(sql: sql, parameters: [id])
+        return result.first
     }
     
-    /// 查询列表
-    func queryList(from tableName: String, where whereClause: String? = nil, orderBy: String? = nil, limit: Int? = nil) -> [[String: Any]] {
-        return listQuery.queryList(from: tableName, where: whereClause, orderBy: orderBy, limit: limit)
-    }
-    
-    /// 查询数量
-    func queryCount(from tableName: String, where whereClause: String? = nil) -> Int {
-        let sql = SQLGenerator.generateCountSQL(tableName: tableName, whereClause: whereClause)
-        let result = service.query(sql)
-        return result.first?["count"] as? Int ?? 0
+    /// 检查记录是否存在
+    /// - Parameters:
+    ///   - tableName: 表名
+    ///   - whereClause: WHERE 子句
+    ///   - parameters: 参数
+    /// - Returns: 是否存在
+    func exists(tableName: String, whereClause: String, parameters: [Any]? = nil) -> Bool {
+        let sql = "SELECT 1 FROM \(tableName) WHERE \(whereClause) LIMIT 1"
+        let result = service.query(sql: sql, parameters: parameters)
+        return !result.isEmpty
     }
 } 

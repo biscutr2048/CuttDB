@@ -1,31 +1,31 @@
 import Foundation
 
 /// 更新管理器 - 负责数据更新操作
-public struct UpdateManager {
+internal struct UpdateManager {
     private let service: CuttDBService
     
-    public init(service: CuttDBService) {
+    init(service: CuttDBService) {
         self.service = service
     }
     
     /// 更新数据
     /// - Parameters:
     ///   - tableName: 表名
-    ///   - values: 要更新的值
+    ///   - values: 更新的值
     ///   - whereClause: 更新条件
     /// - Returns: 是否更新成功
-    public func update(tableName: String, values: [String: Any], whereClause: String) -> Bool {
+    func update(tableName: String, values: [String: Any], whereClause: String) -> Bool {
         let sql = generateUpdateSQL(tableName: tableName, values: values, whereClause: whereClause)
-        return service.executeSQL(sql)
+        return service.execute(sql: sql, parameters: nil) > 0
     }
     
     /// 根据ID更新数据
     /// - Parameters:
     ///   - tableName: 表名
     ///   - id: 对象ID
-    ///   - values: 要更新的值
+    ///   - values: 更新的值
     /// - Returns: 是否更新成功
-    public func updateById(tableName: String, id: String, values: [String: Any]) -> Bool {
+    func updateById(tableName: String, id: String, values: [String: Any]) -> Bool {
         return update(tableName: tableName, values: values, whereClause: "id = '\(id)'")
     }
     

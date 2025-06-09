@@ -16,7 +16,8 @@ public struct CuttDB {
         let fileManager = FileManager.default
         let documentsPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
         self.dbPath = documentsPath.appendingPathComponent(dbName).path
-        self.service = CuttDBServiceFactory.shared().getService(dbPath: dbPath)
+        let configuration = CuttDBServiceConfiguration(dbPath: dbPath)
+        self.service = CuttDBServiceFactory.shared.createService(configuration: configuration)
         self.tableManager = TableManager(service: service)
         self.dataManager = DataManager(service: service)
         self.queryManager = QueryManager(service: service)
@@ -27,19 +28,20 @@ public struct CuttDB {
     // MARK: - Internal Table Management
     
     internal func ensureTableExists(tableName: String, columns: [String]) -> Bool {
-        tableManager.ensureTableExists(tableName: tableName, columns: columns)
+        return tableManager.ensureTableExists(tableName: tableName, columns: columns)
     }
     
     internal func ensureSubTableExists(tableName: String, property: String, columns: [String]) -> Bool {
-        tableManager.ensureSubTableExists(tableName: tableName, property: property, columns: columns)
+        return tableManager.ensureSubTableExists(tableName: tableName, property: property, columns: columns)
     }
     
     internal func createTableFromJSON(tableName: String, json: Any) -> Bool {
-        tableDefinitionManager.createTableDefinition(tableName: tableName, definition: json)
+        guard let definition = json as? [String: Any] else { return false }
+        return tableDefinitionManager.createTableDefinition(tableName: tableName, definition: definition)
     }
     
     internal func validateTableStructure(tableName: String, expectedColumns: [String: String]) -> Bool {
-        tableDefinitionManager.validateTableStructure(tableName: tableName, expectedColumns: expectedColumns)
+        return tableDefinitionManager.validateTableStructure(tableName: tableName, expectedColumns: expectedColumns)
     }
     
     // MARK: - Public Data Operations
@@ -49,52 +51,52 @@ public struct CuttDB {
     ///   - object: 要保存的对象
     ///   - tableName: 表名
     /// - Returns: 是否保存成功
-    public func save<T: Codable>(_ object: T, to tableName: String) -> Bool {
-        dataManager.save(object, to: tableName)
+    public func saveObject<T: Encodable>(_ object: T, to tableName: String) -> Bool {
+        do {
+            let data = try JSONEncoder().encode(object)
+            guard let dict = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                return false
+            }
+            return dataManager.insert(tableName: tableName, values: dict)
+        } catch {
+            return false
+        }
+    }
+    
+    /// 插入对象到数据库
+    /// - Parameters:
+    ///   - object: 要插入的对象
+    ///   - tableName: 表名
+    /// - Returns: 是否插入成功
+    public func insertObject<T: Encodable>(_ object: T, to tableName: String) -> Bool {
+        do {
+            let data = try JSONEncoder().encode(object)
+            guard let dict = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                return false
+            }
+            return dataManager.insert(tableName: tableName, values: dict)
+        } catch {
+            return false
+        }
     }
     
     /// 更新数据库中的对象
     /// - Parameters:
     ///   - object: 要更新的对象
     ///   - tableName: 表名
-    ///   - condition: 更新条件
+    ///   - id: 对象ID
     /// - Returns: 是否更新成功
-    public func update<T: Codable>(_ object: T, in tableName: String, where condition: String) -> Bool {
-        dataManager.update(object, in: tableName, where: condition)
+    public func updateObject<T: Encodable>(_ object: T, in tableName: String, id: String) -> Bool {
+        do {
+            let data = try JSONEncoder().encode(object)
+            guard let dict = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                return false
+            }
+            return dataManager.updateById(tableName: tableName, id: id, values: dict)
+        } catch {
+            return false
+        }
     }
-    
-    /// 从数据库中删除对象
-    /// - Parameters:
-    ///   - tableName: 表名
-    ///   - condition: 删除条件
-    /// - Returns: 是否删除成功
-    public func delete(from tableName: String, where condition: String) -> Bool {
-        dataManager.delete(from: tableName, where: condition)
-    }
-    
-    // MARK: - Internal Data Operations
-    
-    internal func saveObject(_ object: [String: Any], to tableName: String) -> Bool {
-        dataManager.saveObject(object, to: tableName)
-    }
-    
-    internal func insertObject(_ object: [String: Any], into tableName: String) -> Bool {
-        dataManager.insertObject(object, into: tableName)
-    }
-    
-    internal func updateObject(_ object: [String: Any], in tableName: String) -> Bool {
-        dataManager.updateObject(object, in: tableName)
-    }
-    
-    internal func batchInsert(_ objects: [[String: Any]], into tableName: String) -> Bool {
-        dataManager.batchInsert(objects, into: tableName)
-    }
-    
-    internal func batchUpdate(_ objects: [[String: Any]], in tableName: String) -> Bool {
-        dataManager.batchUpdate(objects, in: tableName)
-    }
-    
-    // MARK: - Public Query Operations
     
     /// 查询数据库中的对象
     /// - Parameters:
@@ -104,7 +106,7 @@ public struct CuttDB {
     ///   - limit: 限制数量
     /// - Returns: 查询结果数组
     public func query<T: Codable>(from tableName: String, where condition: String? = nil, orderBy: String? = nil, limit: Int? = nil) -> [T] {
-        queryManager.query(from: tableName, where: condition, orderBy: orderBy, limit: limit)
+        return queryManager.query(from: tableName, where: condition, orderBy: orderBy, limit: limit)
     }
     
     /// 分页查询数据库中的对象
@@ -116,7 +118,7 @@ public struct CuttDB {
     ///   - orderBy: 排序条件
     /// - Returns: 查询结果数组
     public func pagedQuery<T: Codable>(from tableName: String, page: Int, pageSize: Int, where condition: String? = nil, orderBy: String? = nil) -> [T] {
-        queryManager.pagedQuery(from: tableName, page: page, pageSize: pageSize, where: condition, orderBy: orderBy)
+        return queryManager.pagedQuery(from: tableName, page: page, pageSize: pageSize, where: condition, orderBy: orderBy)
     }
     
     /// 离线查询数据库中的对象
@@ -127,36 +129,22 @@ public struct CuttDB {
     ///   - limit: 限制数量
     /// - Returns: 查询结果数组
     public func offlineQuery<T: Codable>(from tableName: String, where condition: String? = nil, orderBy: String? = nil, limit: Int? = nil) -> [T] {
-        queryManager.offlineQuery(from: tableName, where: condition, orderBy: orderBy, limit: limit)
+        return queryManager.offlineQuery(from: tableName, where: condition, orderBy: orderBy, limit: limit)
     }
     
     // MARK: - Internal Query Operations
     
     internal func queryObject(from tableName: String, where whereClause: String) -> [String: Any]? {
-        queryManager.queryObject(from: tableName, where: whereClause)
+        return queryManager.queryObject(from: tableName, where: whereClause)
     }
     
     internal func queryList(from tableName: String, where whereClause: String? = nil, orderBy: String? = nil, limit: Int? = nil) -> [[String: Any]] {
-        queryManager.queryList(from: tableName, where: whereClause, orderBy: orderBy, limit: limit)
+        return queryManager.queryList(from: tableName, where: whereClause, orderBy: orderBy, limit: limit)
     }
     
-    internal func queryCount(from tableName: String, where whereClause: String? = nil) -> Int {
-        queryManager.queryCount(from: tableName, where: whereClause)
-    }
+    // MARK: - Request Index Key Generation
     
-    // MARK: - Utility Methods
-    
-    /// 生成请求索引键
-    /// - Parameters:
-    ///   - tableName: 表名
-    ///   - property: 属性名
-    ///   - value: 属性值
-    /// - Returns: 索引键
-    public func generateRequestIndexKey(tableName: String, property: String, value: Any) -> String {
-        sqlGenerator.generateRequestIndexKey(tableName: tableName, property: property, value: value)
-    }
-    
-    internal static func requestIndexKey(api: String, method: String) -> String {
-        StringUtils.requestIndexKey(api: api, method: method)
+    internal func generateRequestIndexKey(api: String, method: String) -> String {
+        return "\(api)_\(method)"
     }
 } 

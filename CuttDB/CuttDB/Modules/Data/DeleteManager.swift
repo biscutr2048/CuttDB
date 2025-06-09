@@ -1,10 +1,10 @@
 import Foundation
 
 /// 删除管理器 - 负责数据删除操作
-public struct DeleteManager {
+internal struct DeleteManager {
     private let service: CuttDBService
     
-    public init(service: CuttDBService) {
+    init(service: CuttDBService) {
         self.service = service
     }
     
@@ -13,9 +13,9 @@ public struct DeleteManager {
     ///   - tableName: 表名
     ///   - whereClause: 删除条件
     /// - Returns: 是否删除成功
-    public func delete(tableName: String, whereClause: String) -> Bool {
+    func delete(tableName: String, whereClause: String) -> Bool {
         let sql = generateDeleteSQL(tableName: tableName, whereClause: whereClause)
-        return service.executeSQL(sql)
+        return service.execute(sql: sql, parameters: nil) > 0
     }
     
     /// 根据ID删除数据
@@ -23,7 +23,7 @@ public struct DeleteManager {
     ///   - tableName: 表名
     ///   - id: 对象ID
     /// - Returns: 是否删除成功
-    public func deleteById(tableName: String, id: String) -> Bool {
+    func deleteById(tableName: String, id: String) -> Bool {
         return delete(tableName: tableName, whereClause: "id = '\(id)'")
     }
     
@@ -34,7 +34,7 @@ public struct DeleteManager {
     ///   - parentId: 父表ID
     ///   - whereClause: 删除条件
     /// - Returns: 是否删除成功
-    public func deleteSubTable(parentTable: String, subTable: String, parentId: String, whereClause: String? = nil) -> Bool {
+    func deleteSubTable(parentTable: String, subTable: String, parentId: String, whereClause: String? = nil) -> Bool {
         var fullWhereClause = "\(parentTable)_id = '\(parentId)'"
         if let whereClause = whereClause {
             fullWhereClause += " AND \(whereClause)"
@@ -47,10 +47,10 @@ public struct DeleteManager {
     ///   - tableName: 表名
     ///   - whereClause: 删除条件
     /// - Returns: 是否标记成功
-    public func markAsDeleted(tableName: String, whereClause: String) -> Bool {
+    func markAsDeleted(tableName: String, whereClause: String) -> Bool {
         let values = ["is_deleted": 1, "deleted_at": Date().timeIntervalSince1970]
         let sql = generateUpdateSQL(tableName: tableName, values: values, whereClause: whereClause)
-        return service.executeSQL(sql)
+        return service.execute(sql: sql, parameters: nil) > 0
     }
     
     /// 生成删除SQL

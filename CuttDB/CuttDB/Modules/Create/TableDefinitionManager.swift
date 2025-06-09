@@ -1,6 +1,6 @@
 import Foundation
 
-/// 表定义管理器
+/// 表定义管理器 - 负责表定义的管理
 internal struct TableDefinitionManager {
     private let service: CuttDBService
     private let indexManager: IndexManager
@@ -10,39 +10,61 @@ internal struct TableDefinitionManager {
         self.indexManager = IndexManager(service: service)
     }
     
-    /// 从JSON创建表定义
-    func createTableDefinition(tableName: String, definition: Any) -> Bool {
-        guard let columns = extractTableDefinition(from: definition) else {
-            return false
-        }
-        
-        let sql = SQLGenerator.createTableIfNotExists(tableName: tableName, columns: columns)
-        return service.executeSQL(sql)
+    /// 创建表定义
+    /// - Parameters:
+    ///   - tableName: 表名
+    ///   - definition: 表定义
+    /// - Returns: 是否创建成功
+    func createTableDefinition(tableName: String, definition: [String: Any]) -> Bool {
+        let sql = generateCreateTableSQL(tableName: tableName, definition: definition)
+        return service.execute(sql: sql, parameters: nil) > 0
     }
     
     /// 验证表结构
+    /// - Parameters:
+    ///   - tableName: 表名
+    ///   - expectedColumns: 期望的列定义
+    /// - Returns: 是否验证通过
     func validateTableStructure(tableName: String, expectedColumns: [String: String]) -> Bool {
-        let sql = "PRAGMA table_info(\(tableName))"
-        let result = service.query(sql)
+        let currentColumns = getCurrentColumns(tableName: tableName)
         
-        guard !result.isEmpty else { return false }
-        
-        let existingColumns = Dictionary(uniqueKeysWithValues: result.compactMap { row -> (String, String)? in
-            guard let name = row["name"] as? String,
-                  let type = row["type"] as? String else {
-                return nil
+        // 检查所有期望的列是否存在且类型匹配
+        for (columnName, columnType) in expectedColumns {
+            guard let currentColumn = currentColumns.first(where: { $0.name == columnName }) else {
+                return false
             }
-            return (name, type)
-        })
-        
-        for (name, type) in expectedColumns {
-            guard let existingType = existingColumns[name],
-                  existingType.lowercased() == type.lowercased() else {
+            
+            if currentColumn.type.uppercased() != columnType.uppercased() {
                 return false
             }
         }
         
         return true
+    }
+    
+    /// 获取当前表的列定义
+    private func getCurrentColumns(tableName: String) -> [(name: String, type: String)] {
+        let sql = "PRAGMA table_info(\(tableName))"
+        let result = service.query(sql: sql, parameters: nil)
+        
+        return result.map { row in
+            let name = row["name"] as? String ?? ""
+            let type = row["type"] as? String ?? ""
+            return (name: name, type: type)
+        }
+    }
+    
+    /// 生成创建表SQL
+    private func generateCreateTableSQL(tableName: String, definition: [String: Any]) -> String {
+        let columns = definition.map { (key, value) in
+            if let type = value as? String {
+                return "\(key) \(type)"
+            } else {
+                return "\(key) TEXT"
+            }
+        }.joined(separator: ", ")
+        
+        return "CREATE TABLE IF NOT EXISTS \(tableName) (\(columns))"
     }
     
     /// 创建索引
@@ -86,9 +108,9 @@ internal struct TableDefinitionManager {
     ///   - columns: 列定义
     /// - Returns: 是否成功
     func createSubTable(parentTable: String, subTable: String, columns: [String: String]) -> Bool {
-        let columnDefinitions = columns.map { "\($0.key) \($0.value)" }
-        let sql = SQLGenerator.generateCreateTableSQL(tableName: subTable, columns: columnDefinitions)
-        return service.execute(sql: sql)
+        let columnDefinitions = columns.map { "\($0.key) \($0.value)" }.joined(separator: ", ")
+        let sql = "CREATE TABLE IF NOT EXISTS \(subTable) (\(columnDefinitions))"
+        return service.execute(sql: sql, parameters: nil) > 0
     }
     
     /// 验证子表结构

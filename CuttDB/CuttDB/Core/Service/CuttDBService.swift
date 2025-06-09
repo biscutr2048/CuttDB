@@ -1,22 +1,31 @@
 import Foundation
 
-/// CuttDBService - 数据库服务接口
-/// 提供最基础的数据库操作能力
-public protocol CuttDBService {
-    // MARK: - 基础操作
+/// CuttDB服务配置
+public struct CuttDBServiceConfiguration {
+    /// 数据库路径
+    public let dbPath: String
     
-    /// 执行查询SQL
+    /// 初始化配置
+    /// - Parameter dbPath: 数据库路径
+    public init(dbPath: String) {
+        self.dbPath = dbPath
+    }
+}
+
+/// CuttDB服务协议
+public protocol CuttDBService {
+    /// 执行SQL查询
     /// - Parameters:
     ///   - sql: SQL语句
-    ///   - parameters: 参数列表
-    /// - Returns: 查询结果集
+    ///   - parameters: 参数
+    /// - Returns: 查询结果
     func query(sql: String, parameters: [Any]?) -> [[String: Any]]
     
-    /// 执行更新SQL
+    /// 执行SQL命令
     /// - Parameters:
     ///   - sql: SQL语句
-    ///   - parameters: 参数列表
-    /// - Returns: 影响的行数
+    ///   - parameters: 参数
+    /// - Returns: 受影响的行数
     func execute(sql: String, parameters: [Any]?) -> Int
     
     // MARK: - 事务管理
@@ -68,94 +77,68 @@ public protocol CuttDBService {
     func getMockData(for table: String) -> [[String: Any]]
 }
 
-/// CuttDBService的默认实现
-public class DefaultCuttDBService: CuttDBService {
-    private let dbPath: String
+/// 默认CuttDB服务实现
+internal class DefaultCuttDBService: CuttDBService {
+    private let configuration: CuttDBServiceConfiguration
     private var mockData: [String: [[String: Any]]] = [:]
     
-    public init(dbPath: String) {
-        self.dbPath = dbPath
+    init(configuration: CuttDBServiceConfiguration) {
+        self.configuration = configuration
     }
     
-    // MARK: - 基础操作实现
-    
-    public func query(sql: String, parameters: [Any]? = nil) -> [[String: Any]] {
-        // TODO: 实现SQL查询
+    func query(sql: String, parameters: [Any]?) -> [[String: Any]] {
+        // TODO: 实现数据库查询
         return []
     }
     
-    public func execute(sql: String, parameters: [Any]? = nil) -> Int {
-        // TODO: 实现SQL执行
+    func execute(sql: String, parameters: [Any]?) -> Int {
+        // TODO: 实现数据库执行
         return 0
     }
     
     // MARK: - 事务管理实现
     
-    public func beginTransaction() {
+    func beginTransaction() {
         // TODO: 实现事务开始
     }
     
-    public func commit() {
+    func commit() {
         // TODO: 实现事务提交
     }
     
-    public func rollback() {
+    func rollback() {
         // TODO: 实现事务回滚
     }
     
     // MARK: - 表结构管理实现
     
-    public func createTable(name: String, columns: [String: String]) -> Bool {
+    func createTable(name: String, columns: [String: String]) -> Bool {
         // TODO: 实现表创建
         return false
     }
     
-    public func dropTable(name: String) -> Bool {
+    func dropTable(name: String) -> Bool {
         // TODO: 实现表删除
         return false
     }
     
-    public func tableExists(name: String) -> Bool {
+    func tableExists(name: String) -> Bool {
         // TODO: 实现表存在检查
         return false
     }
     
-    public func getTableSchema(name: String) -> [String: String] {
+    func getTableSchema(name: String) -> [String: String] {
         // TODO: 实现获取表结构
         return [:]
     }
     
     // MARK: - 测试支持实现
     
-    public func setMockData(for table: String, data: [[String: Any]]) {
+    func setMockData(for table: String, data: [[String: Any]]) {
         mockData[table] = data
     }
     
-    public func getMockData(for table: String) -> [[String: Any]] {
+    func getMockData(for table: String) -> [[String: Any]] {
         return mockData[table] ?? []
-    }
-}
-
-/// CuttDBService工厂类
-public class CuttDBServiceFactory {
-    private static var instance: CuttDBServiceFactory?
-    private var services: [String: CuttDBService] = [:]
-    
-    private init() {}
-    
-    public static func shared() -> CuttDBServiceFactory {
-        if instance == nil {
-            instance = CuttDBServiceFactory()
-        }
-        return instance!
-    }
-    
-    public func getService(dbPath: String) -> CuttDBService {
-        if let service = services[dbPath] {
-            return service
-        }
-        let service = DefaultCuttDBService(dbPath: dbPath)
-        services[dbPath] = service
-        return service
     }
 } 
