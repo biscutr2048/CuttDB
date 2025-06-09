@@ -111,4 +111,82 @@ struct DeleteModule_BatchTest {
             assert(result, "Should validate batch delete operation")
         }
     }
+}
+
+class DeleteModule_BatchTest: CuttDBTestCase {
+    override func runTests() {
+        print("Running DeleteModule_BatchTest...")
+        
+        // 创建测试数据
+        let testData = [
+            "tableName": "test_table",
+            "conditions": ["id = 1", "id = 2", "id = 3"],
+            "condition": "status = 'inactive'",
+            "config": [
+                "batch_size": 100,
+                "max_retries": 3
+            ]
+        ]
+        
+        // 创建Mock服务
+        let mockService = MockCuttDBService()
+        
+        // 测试批量删除记录
+        print("Testing batchDeleteRecords...")
+        let batchResult = CuttDB.batchDeleteRecords(
+            tableName: testData["tableName"] as! String,
+            conditions: testData["conditions"] as! [String],
+            dbService: mockService
+        )
+        assert(batchResult > 0, "Batch delete records failed")
+        
+        // 测试带条件的批量删除
+        print("Testing batchDeleteWithCondition...")
+        let conditionResult = CuttDB.batchDeleteWithCondition(
+            tableName: testData["tableName"] as! String,
+            condition: testData["condition"] as! String,
+            batchSize: (testData["config"] as! [String: Any])["batch_size"] as! Int,
+            dbService: mockService
+        )
+        assert(conditionResult > 0, "Batch delete with condition failed")
+        
+        // 测试配置批量删除
+        print("Testing configureBatchDelete...")
+        let configResult = CuttDB.configureBatchDelete(
+            tableName: testData["tableName"] as! String,
+            config: testData["config"] as! [String: Any],
+            dbService: mockService
+        )
+        assert(configResult, "Configure batch delete failed")
+        
+        // 测试事务中的批量删除
+        print("Testing batchDeleteInTransaction...")
+        let transactionResult = CuttDB.batchDeleteInTransaction(
+            tableName: testData["tableName"] as! String,
+            conditions: testData["conditions"] as! [String],
+            dbService: mockService
+        )
+        assert(transactionResult, "Batch delete in transaction failed")
+        
+        // 测试带重试的批量删除
+        print("Testing batchDeleteWithRetry...")
+        let retryResult = CuttDB.batchDeleteWithRetry(
+            tableName: testData["tableName"] as! String,
+            conditions: testData["conditions"] as! [String],
+            maxRetries: (testData["config"] as! [String: Any])["max_retries"] as! Int,
+            dbService: mockService
+        )
+        assert(retryResult, "Batch delete with retry failed")
+        
+        // 测试验证批量删除
+        print("Testing validateBatchDelete...")
+        let validateResult = CuttDB.validateBatchDelete(
+            tableName: testData["tableName"] as! String,
+            conditions: testData["conditions"] as! [String],
+            dbService: mockService
+        )
+        assert(validateResult, "Validate batch delete failed")
+        
+        print("DeleteModule_BatchTest completed successfully!")
+    }
 } 

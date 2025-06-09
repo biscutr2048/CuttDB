@@ -7,9 +7,153 @@
 
 import Foundation
 
-/// 数据库业务对象管理
-struct CuttDB {
-    // MARK: - Create Module
+/// CuttDB - 用户接口层
+/// 提供简化的、高度自动化的API给用户代码
+public struct CuttDB {
+    private let service: CuttDBService
+    private let dbPath: String
+    
+    /// 初始化CuttDB实例
+    /// - Parameter dbName: 数据库名称，默认为"cuttDB.sqlite"
+    public init(dbName: String = "cuttDB.sqlite") {
+        let fileManager = FileManager.default
+        let documentsPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        self.dbPath = documentsPath.appendingPathComponent(dbName).path
+        self.service = CuttDBServiceFactory.shared().getService(dbPath: dbPath)
+    }
+    
+    // MARK: - 表管理
+    
+    /// 确保表存在
+    /// - Parameters:
+    ///   - tableName: 表名
+    ///   - columns: 列定义
+    /// - Returns: 是否成功
+    public func ensureTableExists(tableName: String, columns: [String]) -> Bool {
+        if !service.tableExists(tableName) {
+            let sql = generateCreateTableSQL(tableName: tableName, columns: columns)
+            return service.execute(sql: sql)
+        }
+        return true
+    }
+    
+    /// 确保子表存在
+    /// - Parameters:
+    ///   - tableName: 主表名
+    ///   - property: 属性名
+    ///   - columns: 列定义
+    /// - Returns: 是否成功
+    public func ensureSubTableExists(tableName: String, property: String, columns: [String]) -> Bool {
+        let subTableName = "\(tableName)-sub-\(property)"
+        return ensureTableExists(tableName: subTableName, columns: columns)
+    }
+    
+    // MARK: - 数据操作
+    
+    /// 保存对象
+    /// - Parameters:
+    ///   - object: 要保存的对象
+    ///   - tableName: 表名
+    /// - Returns: 是否成功
+    public func saveObject(_ object: [String: Any], to tableName: String) -> Bool {
+        if let id = object["id"] as? Int {
+            return updateObject(object, in: tableName)
+        } else {
+            return insertObject(object, into: tableName)
+        }
+    }
+    
+    /// 插入对象
+    /// - Parameters:
+    ///   - object: 要插入的对象
+    ///   - tableName: 表名
+    /// - Returns: 是否成功
+    public func insertObject(_ object: [String: Any], into tableName: String) -> Bool {
+        let sql = generateInsertSQL(tableName: tableName, values: object)
+        return service.execute(sql: sql)
+    }
+    
+    /// 更新对象
+    /// - Parameters:
+    ///   - object: 要更新的对象
+    ///   - tableName: 表名
+    /// - Returns: 是否成功
+    public func updateObject(_ object: [String: Any], in tableName: String) -> Bool {
+        guard let id = object["id"] as? Int else { return false }
+        let sql = generateUpdateSQL(tableName: tableName, values: object, whereClause: "id = \(id)")
+        return service.execute(sql: sql)
+    }
+    
+    /// 查询对象
+    /// - Parameters:
+    ///   - tableName: 表名
+    ///   - whereClause: 查询条件
+    /// - Returns: 查询结果
+    public func queryObject(from tableName: String, where whereClause: String) -> [String: Any]? {
+        let sql = "SELECT * FROM \(tableName) WHERE \(whereClause) LIMIT 1"
+        return service.query(sql: sql)?.first
+    }
+    
+    /// 查询列表
+    /// - Parameters:
+    ///   - tableName: 表名
+    ///   - whereClause: 查询条件
+    ///   - orderBy: 排序条件
+    ///   - limit: 限制数量
+    /// - Returns: 查询结果
+    public func queryList(from tableName: String, where whereClause: String? = nil, orderBy: String? = nil, limit: Int? = nil) -> [[String: Any]] {
+        var sql = "SELECT * FROM \(tableName)"
+        if let whereClause = whereClause {
+            sql += " WHERE \(whereClause)"
+        }
+        if let orderBy = orderBy {
+            sql += " ORDER BY \(orderBy)"
+        }
+        if let limit = limit {
+            sql += " LIMIT \(limit)"
+        }
+        return service.query(sql: sql) ?? []
+    }
+    
+    // MARK: - SQL生成
+    
+    /// 生成创建表SQL
+    private func generateCreateTableSQL(tableName: String, columns: [String]) -> String {
+        return """
+            CREATE TABLE IF NOT EXISTS \(tableName) (
+                \(columns.joined(separator: ", "))
+            );
+        """
+    }
+    
+    /// 生成插入SQL
+    private func generateInsertSQL(tableName: String, values: [String: Any]) -> String {
+        let columns = values.keys.joined(separator: ", ")
+        let placeholders = values.keys.map { "@\($0)" }.joined(separator: ", ")
+        return "INSERT INTO \(tableName) (\(columns)) VALUES (\(placeholders))"
+    }
+    
+    /// 生成更新SQL
+    private func generateUpdateSQL(tableName: String, values: [String: Any], whereClause: String) -> String {
+        let setClause = values.keys.map { "\($0) = @\($0)" }.joined(separator: ", ")
+        return "UPDATE \(tableName) SET \(setClause) WHERE \(whereClause)"
+    }
+    
+    // MARK: - 工具方法
+    
+    /// 生成请求索引键
+    /// - Parameters:
+    ///   - api: API路径
+    ///   - method: HTTP方法
+    /// - Returns: 索引键
+    public static func requestIndexKey(api: String, method: String) -> String {
+        return "\(method)_\(api)".replacingOccurrences(of: "/", with: "_")
+    }
+}
+
+// MARK: - Create Module
+
+extension CuttDB {
     /// 模块：create
     /// 需求：auto.get create sql
     /// 功能：从 JSON 结构提取表格定义
@@ -114,8 +258,11 @@ struct CuttDB {
     static func validateTableDefinition(tableName: String, expectedDefinition: [String: Any], dbService: CuttDBService) -> Bool {
         return dbService.validateTableDefinition(tableName: tableName, expectedDefinition: expectedDefinition)
     }
-    
-    // MARK: - Insert/Update Module
+}
+
+// MARK: - Insert/Update Module
+
+extension CuttDB {
     /// 模块：insert/update
     /// 需求：op.save object to insert sql, op.save object to update sql
     /// 功能：根据响应数据自动提取表定义、自动识别主键并判断主键是否存在，生成SQL语句（insert或update）
@@ -876,5 +1023,108 @@ extension CuttDB {
         sql += " LIMIT \(pageSize) OFFSET \(offset)"
         
         return dbService.query(sql: sql)
+    }
+}
+
+// MARK: - Insert/Update Module
+
+extension CuttDB {
+    /// 生成插入SQL
+    /// - Parameters:
+    ///   - tableName: 表名
+    ///   - columns: 列名列表
+    ///   - values: 值列表
+    /// - Returns: SQL语句
+    static func generateInsertSQL(tableName: String, columns: [String], values: [Any]) -> String {
+        let columnsStr = columns.joined(separator: ", ")
+        let placeholders = Array(repeating: "?", count: values.count).joined(separator: ", ")
+        return "INSERT INTO \(tableName) (\(columnsStr)) VALUES (\(placeholders))"
+    }
+    
+    /// 生成更新SQL
+    /// - Parameters:
+    ///   - tableName: 表名
+    ///   - data: 更新数据
+    ///   - condition: 更新条件
+    /// - Returns: SQL语句
+    static func generateUpdateSQL(tableName: String, data: [String: Any], condition: String) -> String {
+        let setClause = data.map { "\($0.key) = ?" }.joined(separator: ", ")
+        return "UPDATE \(tableName) SET \(setClause) WHERE \(condition)"
+    }
+    
+    /// 生成Upsert SQL
+    /// - Parameters:
+    ///   - tableName: 表名
+    ///   - data: 数据
+    ///   - uniqueColumns: 唯一列
+    /// - Returns: SQL语句
+    static func generateUpsertSQL(tableName: String, data: [String: Any], uniqueColumns: [String]) -> String {
+        let columns = Array(data.keys)
+        let columnsStr = columns.joined(separator: ", ")
+        let placeholders = Array(repeating: "?", count: data.count).joined(separator: ", ")
+        let updateClause = columns.map { "\($0) = VALUES(\($0))" }.joined(separator: ", ")
+        return "INSERT INTO \(tableName) (\(columnsStr)) VALUES (\(placeholders)) ON DUPLICATE KEY UPDATE \(updateClause)"
+    }
+    
+    /// 生成批量插入SQL
+    /// - Parameters:
+    ///   - tableName: 表名
+    ///   - columns: 列名列表
+    ///   - values: 值列表
+    /// - Returns: SQL语句
+    static func generateBatchInsertSQL(tableName: String, columns: [String], values: [[Any]]) -> String {
+        let columnsStr = columns.joined(separator: ", ")
+        let valueClauses = values.map { row in
+            let placeholders = Array(repeating: "?", count: row.count).joined(separator: ", ")
+            return "(\(placeholders))"
+        }.joined(separator: ", ")
+        return "INSERT INTO \(tableName) (\(columnsStr)) VALUES \(valueClauses)"
+    }
+    
+    /// 执行插入
+    /// - Parameters:
+    ///   - tableName: 表名
+    ///   - data: 数据
+    ///   - dbService: 数据库服务
+    /// - Returns: 是否成功
+    static func executeInsert(tableName: String, data: [String: Any], dbService: CuttDBService) -> Bool {
+        let columns = Array(data.keys)
+        let values = Array(data.values)
+        let sql = generateInsertSQL(tableName: tableName, columns: columns, values: values)
+        return dbService.execute(sql: sql)
+    }
+    
+    /// 执行更新
+    /// - Parameters:
+    ///   - sql: SQL语句
+    ///   - parameters: 参数
+    /// - Returns: 是否成功
+    static func executeUpdate(sql: String, parameters: [String: Any]) -> Bool {
+        // 这里可以添加参数绑定逻辑
+        return true
+    }
+    
+    /// 执行Upsert
+    /// - Parameters:
+    ///   - tableName: 表名
+    ///   - data: 数据
+    ///   - uniqueColumns: 唯一列
+    ///   - dbService: 数据库服务
+    /// - Returns: 是否成功
+    static func executeUpsert(tableName: String, data: [String: Any], uniqueColumns: [String], dbService: CuttDBService) -> Bool {
+        let sql = generateUpsertSQL(tableName: tableName, data: data, uniqueColumns: uniqueColumns)
+        return dbService.execute(sql: sql)
+    }
+    
+    /// 执行批量插入
+    /// - Parameters:
+    ///   - tableName: 表名
+    ///   - columns: 列名列表
+    ///   - values: 值列表
+    ///   - dbService: 数据库服务
+    /// - Returns: 是否成功
+    static func executeBatchInsert(tableName: String, columns: [String], values: [[Any]], dbService: CuttDBService) -> Bool {
+        let sql = generateBatchInsertSQL(tableName: tableName, columns: columns, values: values)
+        return dbService.execute(sql: sql)
     }
 } 

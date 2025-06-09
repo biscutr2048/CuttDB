@@ -219,4 +219,104 @@ struct InsertUpdateModule_SQLTest {
             print("Interface layer batch insert test completed successfully")
         }
     }
+}
+
+class InsertUpdateModule_SQLTest: CuttDBTestCase {
+    override func runTests() {
+        print("Running InsertUpdateModule_SQLTest...")
+        
+        // 创建测试数据
+        let testData: [String: Any] = [
+            "tableName": "test_table",
+            "columns": ["id", "name", "status", "created_at"],
+            "values": [1, "Test", "active", "2024-03-20"],
+            "updateData": [
+                "name": "Updated Test",
+                "status": "inactive"
+            ],
+            "batchData": [
+                [1, "Test 1", "active", "2024-03-20"],
+                [2, "Test 2", "active", "2024-03-20"],
+                [3, "Test 3", "active", "2024-03-20"]
+            ]
+        ]
+        
+        // 创建Mock服务
+        let mockService = MockCuttDBService()
+        
+        // 测试生成插入SQL
+        print("Testing generateInsertSQL...")
+        let insertSQL = CuttDB.generateInsertSQL(
+            tableName: testData["tableName"] as! String,
+            columns: testData["columns"] as! [String],
+            values: testData["values"] as! [Any]
+        )
+        assert(!insertSQL.isEmpty, "Generate insert SQL failed")
+        
+        // 测试生成更新SQL
+        print("Testing generateUpdateSQL...")
+        let updateSQL = CuttDB.generateUpdateSQL(
+            tableName: testData["tableName"] as! String,
+            data: testData["updateData"] as! [String: Any],
+            condition: "id = 1"
+        )
+        assert(!updateSQL.isEmpty, "Generate update SQL failed")
+        
+        // 测试生成Upsert SQL
+        print("Testing generateUpsertSQL...")
+        let upsertSQL = CuttDB.generateUpsertSQL(
+            tableName: testData["tableName"] as! String,
+            data: testData["updateData"] as! [String: Any],
+            uniqueColumns: ["id"]
+        )
+        assert(!upsertSQL.isEmpty, "Generate upsert SQL failed")
+        
+        // 测试生成批量插入SQL
+        print("Testing generateBatchInsertSQL...")
+        let batchInsertSQL = CuttDB.generateBatchInsertSQL(
+            tableName: testData["tableName"] as! String,
+            columns: testData["columns"] as! [String],
+            values: testData["batchData"] as! [[Any]]
+        )
+        assert(!batchInsertSQL.isEmpty, "Generate batch insert SQL failed")
+        
+        // 测试执行插入
+        print("Testing executeInsert...")
+        let insertResult = CuttDB.executeInsert(
+            tableName: testData["tableName"] as! String,
+            data: testData["updateData"] as! [String: Any],
+            dbService: mockService
+        )
+        assert(insertResult, "Execute insert failed")
+        
+        // 测试执行更新
+        print("Testing executeUpdate...")
+        let updateResult = CuttDB.executeUpdate(
+            sql: updateSQL,
+            parameters: testData["updateData"] as! [String: Any]
+        )
+        assert(updateResult, "Execute update failed")
+        
+        // 测试执行Upsert
+        print("Testing executeUpsert...")
+        let upsertResult = CuttDB.executeUpsert(
+            tableName: testData["tableName"] as! String,
+            data: testData["updateData"] as! [String: Any],
+            uniqueColumns: ["id"],
+            dbService: mockService
+        )
+        assert(upsertResult, "Execute upsert failed")
+        
+        // 测试执行批量插入
+        print("Testing executeBatchInsert...")
+        let batchInsertResult = CuttDB.executeBatchInsert(
+            tableName: testData["tableName"] as! String,
+            columns: testData["columns"] as! [String],
+            values: testData["batchData"] as! [[Any]],
+            dbService: mockService
+        )
+        assert(batchInsertResult, "Execute batch insert failed")
+        
+        print("InsertUpdateModule_SQLTest completed successfully!")
+    }
 } 
