@@ -30,23 +30,20 @@ VER:0.1
 
     ## op.delete update to aged    🈳
 
-# PARADIGM
-
-    ## BIZ-DEF, CRUD by occasion, testing    🌰
-
-# drop
-
-    ## drop missing, testing, debug-if    ➡️
-
 # align
 
     ## upgrade dest-table from src-table    ➡️
+    ## drop missing, testing, debug-if    ➡️
 
 # mechanism
 
     ## pair table to req, obj_list, paged    💯
     ## json object gt 3.38    🈶
     ## vector table    🈳
+
+# PARADIGM
+
+    ## BIZ-DEF, CRUD by occasion, testing    🌰
 
 ---
 
@@ -86,19 +83,17 @@ VER:0.1
 #### Delete Module
 - op.delete update to aged 🈳 - Data aging mechanism pending implementation
 
-#### PARADIGM Module
-- BIZ-DEF, CRUD by occasion, testing 🌰 - Examples available, testing needs enhancement
-
-#### Drop Module
-- drop missing, testing, debug-if ➡️ - Missing data cleanup pending implementation
-
 #### Align Module
 - upgrade dest-table from src-table ➡️ - Table structure auto-upgrade pending implementation
+- drop missing, testing, debug-if ➡️ - Missing data cleanup pending implementation
 
 #### Mechanism Module
 - pair table to req, obj_list, paged 💯 - Fully implemented through `requestIndexKey` for request-table pairing
 - json object gt 3.38 🈶 - JSON object support implemented, including nested structures and lists
 - vector table 🈳 - Vector table support pending implementation
+
+#### PARADIGM Module
+- BIZ-DEF, CRUD by occasion, testing 🌰 - Examples available, testing needs enhancement
 
 ### Major Updates
 1. Marked `auto.get create sql` as 💯 due to implementation through `extractTableDefinition` and `generateSQL`
