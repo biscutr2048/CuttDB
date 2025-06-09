@@ -1,106 +1,155 @@
-import Foundation
+import XCTest
+@testable import CuttDB
 
-/// 机制模块 - 索引管理测试
-struct MechanismModule_IndexTest {
-    /// 测试数据
-    struct Data {
-        static let indexConfig: [String: Any] = [
-            "name": "idx_users_email",
-            "table": "users",
-            "columns": ["email"],
-            "type": "BTREE",
-            "unique": true
+/// Test class for index operations
+final class MechanismModule_IndexTest: CuttDBTestCase {
+    /// Test data structure
+    struct TestData {
+        static let table = "test_table"
+        static let columns = [
+            "id INTEGER PRIMARY KEY",
+            "name TEXT",
+            "age INTEGER",
+            "created_at INTEGER"
         ]
         
-        static let compositeIndexConfig: [String: Any] = [
-            "name": "idx_users_name_email",
-            "table": "users",
-            "columns": ["name", "email"],
-            "type": "BTREE",
-            "unique": false
-        ]
+        static let indexColumns = ["name", "age"]
+        static let uniqueIndexColumns = ["id"]
         
-        static let indexStats: [String: Any] = [
-            "name": "idx_users_email",
-            "table": "users",
-            "size": 1024,
-            "rows": 1000,
-            "last_analyzed": "2024-03-20"
+        static let testData: [[String: Any]] = [
+            ["id": "1", "name": "Test1", "age": 20, "created_at": Date().timeIntervalSince1970],
+            ["id": "2", "name": "Test2", "age": 30, "created_at": Date().timeIntervalSince1970],
+            ["id": "3", "name": "Test3", "age": 40, "created_at": Date().timeIntervalSince1970]
         ]
     }
     
-    /// 测试逻辑
-    struct Logic {
-        /// 测试创建索引
-        static func testCreateIndex() {
-            let mockDBService = MockCuttDBService()
-            let result = CuttDB.createIndex(
-                tableName: "users",
-                indexConfig: Data.indexConfig,
-                dbService: mockDBService
-            )
-            print("Create Index Result:", result)
-            assert(result, "Should create index successfully")
-        }
+    override func setUp() {
+        super.setUp()
         
-        /// 测试创建复合索引
-        static func testCreateCompositeIndex() {
-            let mockDBService = MockCuttDBService()
-            let result = CuttDB.createIndex(
-                tableName: "users",
-                indexConfig: Data.compositeIndexConfig,
-                dbService: mockDBService
-            )
-            print("Create Composite Index Result:", result)
-            assert(result, "Should create composite index successfully")
-        }
+        // Create test table
+        try? db.createTable(
+            name: TestData.table,
+            columns: ["id", "name", "age", "created_at"]
+        )
         
-        /// 测试删除索引
-        static func testDropIndex() {
-            let mockDBService = MockCuttDBService()
-            let result = CuttDB.dropIndex(
-                tableName: "users",
-                indexName: "idx_users_email",
-                dbService: mockDBService
-            )
-            print("Drop Index Result:", result)
-            assert(result, "Should drop index successfully")
+        // Insert test data
+        for data in TestData.testData {
+            try? db.insert(table: TestData.table, data: data)
         }
+    }
+    
+    override func tearDown() {
+        try? db.dropTable(name: TestData.table)
+        super.tearDown()
+    }
+    
+    // MARK: - Test Methods
+    
+    /// Test creating a normal index
+    func testCreateIndex() throws {
+        // Create index
+        let indexName = "idx_\(TestData.table)_\(TestData.indexColumns.joined(separator: "_"))"
+        let sql = "CREATE INDEX \(indexName) ON \(TestData.table) (\(TestData.indexColumns.joined(separator: ", ")))"
+        try db.queryList(from: TestData.table, where: sql)
         
-        /// 测试重建索引
-        static func testRebuildIndex() {
-            let mockDBService = MockCuttDBService()
-            let result = CuttDB.rebuildIndex(
-                tableName: "users",
-                indexName: "idx_users_email",
-                dbService: mockDBService
-            )
-            print("Rebuild Index Result:", result)
-            assert(result, "Should rebuild index successfully")
-        }
+        // Verify index exists
+        let indexes = try db.queryList(from: "sqlite_master", where: "type = 'index' AND tbl_name = '\(TestData.table)'")
+        XCTAssertNotNil(indexes)
+        XCTAssertTrue(indexes.contains { ($0["name"] as? String) == indexName })
+    }
+    
+    /// Test creating a unique index
+    func testCreateUniqueIndex() throws {
+        // Create unique index
+        let indexName = "idx_\(TestData.table)_\(TestData.uniqueIndexColumns.joined(separator: "_"))"
+        let sql = "CREATE UNIQUE INDEX \(indexName) ON \(TestData.table) (\(TestData.uniqueIndexColumns.joined(separator: ", ")))"
+        try db.queryList(from: TestData.table, where: sql)
         
-        /// 测试索引统计
-        static func testIndexStatistics() {
-            let mockDBService = MockCuttDBService()
-            let result = CuttDB.getIndexStatistics(
-                tableName: "users",
-                indexName: "idx_users_email",
-                dbService: mockDBService
-            )
-            print("Index Statistics Result:", result)
-            assert(result != nil, "Should get index statistics successfully")
-        }
+        // Verify index exists
+        let indexes = try db.queryList(from: "sqlite_master", where: "type = 'index' AND tbl_name = '\(TestData.table)'")
+        XCTAssertNotNil(indexes)
+        XCTAssertTrue(indexes.contains { ($0["name"] as? String) == indexName })
+    }
+    
+    /// Test dropping an index
+    func testDropIndex() throws {
+        // Create index first
+        let indexName = "idx_\(TestData.table)_\(TestData.indexColumns.joined(separator: "_"))"
+        let createSQL = "CREATE INDEX \(indexName) ON \(TestData.table) (\(TestData.indexColumns.joined(separator: ", ")))"
+        try db.queryList(from: TestData.table, where: createSQL)
         
-        /// 测试索引验证
-        static func testIndexValidation() {
-            let mockDBService = MockCuttDBService()
-            let result = CuttDB.validateIndex(
-                tableName: "users",
-                indexName: "idx_users_email",
-                dbService: mockDBService
+        // Drop index
+        let dropSQL = "DROP INDEX \(indexName)"
+        try db.queryList(from: TestData.table, where: dropSQL)
+        
+        // Verify index is removed
+        let indexes = try db.queryList(from: "sqlite_master", where: "type = 'index' AND tbl_name = '\(TestData.table)'")
+        XCTAssertNotNil(indexes)
+        XCTAssertFalse(indexes.contains { ($0["name"] as? String) == indexName })
+    }
+    
+    /// Test query performance with index
+    func testQueryPerformanceWithIndex() throws {
+        // Create index
+        let indexName = "idx_\(TestData.table)_\(TestData.indexColumns.joined(separator: "_"))"
+        let sql = "CREATE INDEX \(indexName) ON \(TestData.table) (\(TestData.indexColumns.joined(separator: ", ")))"
+        try db.queryList(from: TestData.table, where: sql)
+        
+        // Measure query performance
+        measure {
+            _ = try? db.queryList(
+                from: TestData.table,
+                where: "name = 'Test1' AND age > 10"
             )
-            print("Index Validation Result:", result)
-            assert(result, "Should validate index successfully")
         }
+    }
+    
+    /// Test index on multiple columns
+    func testMultiColumnIndex() throws {
+        // Create multi-column index
+        let indexName = "idx_\(TestData.table)_\(TestData.indexColumns.joined(separator: "_"))"
+        let sql = "CREATE INDEX \(indexName) ON \(TestData.table) (\(TestData.indexColumns.joined(separator: ", ")))"
+        try db.queryList(from: TestData.table, where: sql)
+        
+        // Verify index exists
+        let indexes = try db.queryList(from: "sqlite_master", where: "type = 'index' AND tbl_name = '\(TestData.table)'")
+        XCTAssertNotNil(indexes)
+        XCTAssertTrue(indexes.contains { ($0["name"] as? String) == indexName })
+        
+        // Test query using indexed columns
+        let result = try db.queryList(
+            from: TestData.table,
+            where: "name = 'Test1' AND age > 10"
+        )
+        XCTAssertNotNil(result)
+    }
+    
+    /// Test index maintenance
+    func testIndexMaintenance() throws {
+        // Create index
+        let indexName = "idx_\(TestData.table)_\(TestData.indexColumns.joined(separator: "_"))"
+        let sql = "CREATE INDEX \(indexName) ON \(TestData.table) (\(TestData.indexColumns.joined(separator: ", ")))"
+        try db.queryList(from: TestData.table, where: sql)
+        
+        // Insert new data
+        let newData: [String: Any] = [
+            "id": "4",
+            "name": "Test4",
+            "age": 50,
+            "created_at": Date().timeIntervalSince1970
+        ]
+        try db.insert(table: TestData.table, data: newData)
+        
+        // Verify index is maintained
+        let indexes = try db.queryList(from: "sqlite_master", where: "type = 'index' AND tbl_name = '\(TestData.table)'")
+        XCTAssertNotNil(indexes)
+        XCTAssertTrue(indexes.contains { ($0["name"] as? String) == indexName })
+        
+        // Test query with new data
+        let result = try db.queryList(
+            from: TestData.table,
+            where: "name = 'Test4'"
+        )
+        XCTAssertEqual(result.count, 1)
     }
 } 

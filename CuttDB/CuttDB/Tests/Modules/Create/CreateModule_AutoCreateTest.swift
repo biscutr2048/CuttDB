@@ -6,6 +6,7 @@
 //
 
 import XCTest
+@testable import CuttDB
 
 /// Test class for auto-create functionality
 class CreateModule_AutoCreateTest: XCTestCase {
@@ -18,7 +19,7 @@ class CreateModule_AutoCreateTest: XCTestCase {
     struct TestData {
         static let tableName = "test_table"
         static let simpleRecord: [String: Any] = [
-            "id": 1,
+            "id": "1",
             "name": "Test",
             "age": 25,
             "email": "test@example.com",
@@ -26,7 +27,7 @@ class CreateModule_AutoCreateTest: XCTestCase {
         ]
         
         static let complexRecord: [String: Any] = [
-            "id": 2,
+            "id": "2",
             "name": "Complex",
             "profile": [
                 "age": 30,
@@ -51,7 +52,7 @@ class CreateModule_AutoCreateTest: XCTestCase {
         ]
         
         static let recordWithSpecialTypes: [String: Any] = [
-            "id": 3,
+            "id": "3",
             "name": "Special",
             "is_active": true,
             "score": 95.5,
@@ -176,9 +177,9 @@ class CreateModule_AutoCreateTest: XCTestCase {
         // Arrange
         let tableName = TestData.tableName
         let invalidRecord: [String: Any] = [
-            "id": "invalid_id",  // Invalid type for id
-            "name": 123,         // Invalid type for name
-            "age": "invalid_age" // Invalid type for age
+            "id": "invalid_id",
+            "name": 123,
+            "age": "invalid_age"
         ]
         
         // Act & Assert
@@ -200,13 +201,7 @@ class CreateModule_AutoCreateTest: XCTestCase {
         // Create table first
         _ = try? db.createTable(
             name: tableName,
-            columns: [
-                "id INTEGER PRIMARY KEY",
-                "name TEXT",
-                "age INTEGER",
-                "email TEXT",
-                "created_at INTEGER"
-            ]
+            columns: ["id", "name", "age", "email", "created_at"]
         )
         
         // Act

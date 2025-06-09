@@ -29,6 +29,71 @@ public struct CuttDB {
         self.sqlGenerator = SQLGenerator()
     }
     
+    // MARK: - Table Operations
+    
+    /// 创建表
+    /// - Parameters:
+    ///   - name: 表名
+    ///   - columns: 列定义
+    /// - Returns: 是否创建成功
+    public func createTable(name: String, columns: [String]) throws -> Bool {
+        return tableManager.createTable(tableName: name, columns: Dictionary(uniqueKeysWithValues: columns.map { ($0, "TEXT") }))
+    }
+    
+    /// 删除表
+    /// - Parameter name: 表名
+    /// - Returns: 是否删除成功
+    public func dropTable(name: String) throws -> Bool {
+        return tableManager.dropTable(tableName: name)
+    }
+    
+    /// 检查表是否存在
+    /// - Parameter name: 表名
+    /// - Returns: 是否存在
+    public func tableExists(name: String) throws -> Bool {
+        return tableManager.tableExists(tableName: name)
+    }
+    
+    /// 获取表信息
+    /// - Parameter name: 表名
+    /// - Returns: 表信息
+    public func getTableInfo(name: String) throws -> TableInfo? {
+        let schema = service.getTableSchema(name: name)
+        return TableInfo(name: name, columns: schema.map { ColumnInfo(name: $0.key, type: $0.value) })
+    }
+    
+    // MARK: - Data Operations
+    
+    /// 插入或更新数据
+    /// - Parameters:
+    ///   - table: 表名
+    ///   - record: 记录数据
+    ///   - autoCreate: 是否自动创建表
+    /// - Returns: 操作结果
+    public func insertOrUpdate(table: String, record: [String: Any], autoCreate: Bool = false) throws -> OperationResult {
+        if autoCreate {
+            let columns = record.map { ($0.key, "TEXT") }
+            _ = tableManager.createTable(tableName: table, columns: Dictionary(uniqueKeysWithValues: columns))
+        }
+        
+        if let id = record["id"] as? String {
+            let success = dataManager.updateById(tableName: table, id: id, values: record)
+            return OperationResult(success: success)
+        } else {
+            let success = dataManager.insert(tableName: table, values: record)
+            return OperationResult(success: success)
+        }
+    }
+    
+    /// 插入数据
+    /// - Parameters:
+    ///   - table: 表名
+    ///   - data: 数据
+    /// - Returns: 是否插入成功
+    public func insert(table: String, data: [String: Any]) throws -> Bool {
+        return dataManager.insert(tableName: table, values: data)
+    }
+    
     // MARK: - Internal Table Management
     
     @discardableResult
@@ -217,4 +282,23 @@ public enum CuttDBError: Error, Equatable {
     case invalidData(String)
     case tableNotFound(String)
     case unknown(String)
+}
+
+// MARK: - Supporting Types
+
+/// 表信息
+public struct TableInfo {
+    public let name: String
+    public let columns: [ColumnInfo]
+}
+
+/// 列信息
+public struct ColumnInfo {
+    public let name: String
+    public let type: String
+}
+
+/// 操作结果
+public struct OperationResult {
+    public let success: Bool
 } 

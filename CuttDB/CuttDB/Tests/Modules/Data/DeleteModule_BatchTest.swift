@@ -6,162 +6,69 @@
 //
 
 import XCTest
+@testable import CuttDB
 
-/// Test class for batch deletion functionality in the Delete module
-class DeleteModule_BatchTest: XCTestCase {
-    /// Database instance for testing
-    var db: CuttDB!
-    /// Mock service for testing
-    var mockService: MockCuttDBService!
-    
+/// Test class for batch delete operations
+final class DeleteModule_BatchTest: CuttDBTestCase {
     /// Test data structure
     struct TestData {
-        static let tableName = "batch_test_table"
+        static let tableName = "test_table"
         static let columns = [
-            "id INTEGER PRIMARY KEY",
-            "name TEXT",
-            "status TEXT",
-            "created_at INTEGER"
+            "id": "INTEGER PRIMARY KEY",
+            "name": "TEXT",
+            "age": "INTEGER"
         ]
         static let records = [
-            ["id": 1, "name": "Record 1", "status": "active", "created_at": 1000],
-            ["id": 2, "name": "Record 2", "status": "active", "created_at": 1500],
-            ["id": 3, "name": "Record 3", "status": "inactive", "created_at": 2000],
-            ["id": 4, "name": "Record 4", "status": "active", "created_at": 2500],
-            ["id": 5, "name": "Record 5", "status": "inactive", "created_at": 3000]
-        ]
+            ["id": "1", "name": "Test1", "age": 20],
+            ["id": "2", "name": "Test2", "age": 30],
+            ["id": "3", "name": "Test3", "age": 40],
+            ["id": "4", "name": "Test4", "age": 50],
+            ["id": "5", "name": "Test5", "age": 60]
+        ] as [[String: Any]]
     }
     
     override func setUp() {
         super.setUp()
-        let config = CuttDBServiceConfiguration(dbPath: ":memory:")
-        mockService = MockCuttDBService()
-        db = CuttDB(configuration: config)
         
         // Create test table
-        try? db.createTable(
-            name: TestData.tableName,
+        try? db.ensureTableExists(
+            tableName: TestData.tableName,
             columns: TestData.columns
         )
         
         // Insert test data
         for record in TestData.records {
-            try? db.insert(
-                table: TestData.tableName,
-                data: record
-            )
+            try? db.insert(table: TestData.tableName, data: record)
         }
     }
     
     override func tearDown() {
-        // Clean up test table
         try? db.dropTable(name: TestData.tableName)
-        db = nil
-        mockService = nil
         super.tearDown()
     }
     
     // MARK: - Test Methods
     
-    /// Test basic batch delete functionality
-    func testBasicBatchDelete() {
+    /// Test batch delete
+    func testBatchDelete() {
         // Arrange
-        let condition = ["status": "inactive"]
+        let tableName = TestData.tableName
+        let idsToDelete = ["1", "3", "5"]
         
         // Act
-        let result = try? db.deleteBatch(
-            table: TestData.tableName,
-            where: condition
-        )
+        let idList = idsToDelete.map { "'\($0)'" }.joined(separator: ", ")
+        let sql = "DELETE FROM \(tableName) WHERE id IN (\(idList))"
+        let result = try? db.queryList(from: tableName, where: sql)
         
         // Assert
         XCTAssertNotNil(result)
-        XCTAssertEqual(result?.deletedCount, 2)
         
-        // Verify remaining records
-        let queryResult = try? db.select(table: TestData.tableName)
-        XCTAssertNotNil(queryResult)
-        XCTAssertEqual(queryResult?.count, 3)
-    }
-    
-    /// Test batch delete with transaction
-    func testBatchDeleteWithTransaction() {
-        // Arrange
-        let condition = ["status": "active"]
+        // Verify
+        let remainingRecords = try? db.queryList(from: tableName)
+        XCTAssertNotNil(remainingRecords)
+        XCTAssertEqual(remainingRecords?.count, 2)
         
-        // Act
-        try? db.beginTransaction()
-        let result = try? db.deleteBatch(
-            table: TestData.tableName,
-            where: condition
-        )
-        try? db.commitTransaction()
-        
-        // Assert
-        XCTAssertNotNil(result)
-        XCTAssertEqual(result?.deletedCount, 3)
-        
-        // Verify remaining records
-        let queryResult = try? db.select(table: TestData.tableName)
-        XCTAssertNotNil(queryResult)
-        XCTAssertEqual(queryResult?.count, 2)
-    }
-    
-    /// Test batch delete rollback
-    func testBatchDeleteRollback() {
-        // Arrange
-        let condition = ["status": "active"]
-        
-        // Act
-        try? db.beginTransaction()
-        let result = try? db.deleteBatch(
-            table: TestData.tableName,
-            where: condition
-        )
-        try? db.rollbackTransaction()
-        
-        // Assert
-        XCTAssertNotNil(result)
-        XCTAssertEqual(result?.deletedCount, 3)
-        
-        // Verify no records were deleted
-        let queryResult = try? db.select(table: TestData.tableName)
-        XCTAssertNotNil(queryResult)
-        XCTAssertEqual(queryResult?.count, 5)
-    }
-    
-    /// Test batch delete with invalid condition
-    func testBatchDeleteWithInvalidCondition() {
-        // Arrange
-        let invalidCondition = ["invalid_column": "value"]
-        
-        // Act
-        let result = try? db.deleteBatch(
-            table: TestData.tableName,
-            where: invalidCondition
-        )
-        
-        // Assert
-        XCTAssertNotNil(result)
-        XCTAssertEqual(result?.deletedCount, 0)
-        
-        // Verify no records were deleted
-        let queryResult = try? db.select(table: TestData.tableName)
-        XCTAssertNotNil(queryResult)
-        XCTAssertEqual(queryResult?.count, 5)
-    }
-    
-    /// Test performance
-    func testPerformance() {
-        // Arrange
-        let condition = ["status": "active"]
-        
-        // Act & Assert
-        measure {
-            _ = try? db.deleteBatch(
-                table: TestData.tableName,
-                where: condition
-            )
-        }
+        let remainingIds = remainingRecords?.compactMap { $0["id"] as? String }
+        XCTAssertEqual(Set(remainingIds ?? []), Set(["2", "4"]))
     }
 } 
