@@ -10,7 +10,7 @@ import XCTest
 
 /// Test class for sub-table functionality
 final class CreateModule_SubTableTest: CuttDBTestCase {
-    // MARK: - Properties
+    // MARK: - Test Data
     
     /// Test data structure
     struct TestData {
@@ -18,21 +18,21 @@ final class CreateModule_SubTableTest: CuttDBTestCase {
         static let childTable = "child_table"
         static let grandChildTable = "grandchild_table"
         
-        static let parentColumns = [
-            "id": "TEXT",
+        static let parentColumns: [String: String] = [
+            "id": "TEXT PRIMARY KEY",
             "name": "TEXT",
             "age": "INTEGER"
         ]
         
-        static let childColumns = [
-            "id": "TEXT",
+        static let childColumns: [String: String] = [
+            "id": "TEXT PRIMARY KEY",
             "parent_id": "TEXT",
             "name": "TEXT",
             "age": "INTEGER"
         ]
         
-        static let grandChildColumns = [
-            "id": "TEXT",
+        static let grandChildColumns: [String: String] = [
+            "id": "TEXT PRIMARY KEY",
             "child_id": "TEXT",
             "name": "TEXT",
             "age": "INTEGER"
@@ -54,7 +54,7 @@ final class CreateModule_SubTableTest: CuttDBTestCase {
         static let grandChildRecord: [String: Any] = [
             "id": "1",
             "child_id": "1",
-            "name": "Grandchild 1",
+            "name": "GrandChild 1",
             "age": 10
         ]
         
@@ -63,25 +63,40 @@ final class CreateModule_SubTableTest: CuttDBTestCase {
             let name: String
             let age: Int
         }
-    }
-    
-    // MARK: - Setup and Teardown
-    
-    override func setUp() {
-        super.setUp()
-    }
-    
-    override func tearDown() {
-        try? db.dropTable(name: TestData.grandChildTable)
-        try? db.dropTable(name: TestData.childTable)
-        try? db.dropTable(name: TestData.parentTable)
-        super.tearDown()
+        
+        struct ChildRecord: Codable {
+            let id: String
+            let parentId: String
+            let name: String
+            let age: Int
+            
+            enum CodingKeys: String, CodingKey {
+                case id
+                case parentId = "parent_id"
+                case name
+                case age
+            }
+        }
+        
+        struct GrandChildRecord: Codable {
+            let id: String
+            let childId: String
+            let name: String
+            let age: Int
+            
+            enum CodingKeys: String, CodingKey {
+                case id
+                case childId = "child_id"
+                case name
+                case age
+            }
+        }
     }
     
     // MARK: - Test Methods
     
-    /// Test basic sub-table creation
-    func testBasicSubTableCreation() {
+    /// Test creating sub-table
+    func testCreateSubTable() {
         // Arrange
         let parentTable = TestData.parentTable
         let childTable = TestData.childTable
@@ -111,8 +126,30 @@ final class CreateModule_SubTableTest: CuttDBTestCase {
         XCTAssertTrue(childExists ?? false)
     }
     
-    /// Test cascade delete
-    func testCascadeDelete() {
+    /// Test invalid parent table
+    func testInvalidParentTable() {
+        // Arrange
+        let invalidParentTable = "invalid_parent"
+        let childTable = TestData.childTable
+        let childColumns = TestData.childColumns
+        
+        // Act
+        let result = try? db.createTable(
+            name: childTable,
+            columns: Array(childColumns.keys)
+        )
+        
+        // Assert
+        XCTAssertNotNil(result)
+        XCTAssertTrue(result ?? false)
+        
+        // Verify
+        let childExists = try? db.tableExists(name: childTable)
+        XCTAssertTrue(childExists ?? false)
+    }
+    
+    /// Test sub-table data operations
+    func testSubTableDataOperations() {
         // Arrange
         let parentTable = TestData.parentTable
         let childTable = TestData.childTable
@@ -129,25 +166,26 @@ final class CreateModule_SubTableTest: CuttDBTestCase {
             columns: Array(childColumns.keys)
         )
         
-        // Create and save parent record
+        // Insert parent
         let parent = TestData.ParentRecord(id: "1", name: "Parent 1", age: 40)
         _ = db.saveObject(parent)
         
-        // Insert child record
-        _ = try? db.insert(
-            table: childTable,
-            data: TestData.childRecord
-        )
+        // Insert child
+        let child = TestData.ChildRecord(id: "1", parentId: "1", name: "Child 1", age: 20)
+        _ = db.saveObject(child)
         
-        // Act
+        // Query child
+        let children: [TestData.ChildRecord] = db.query(from: childTable, where: "parent_id = '1'")
+        XCTAssertEqual(children.count, 1)
+        XCTAssertEqual(children[0].name, "Child 1")
+        
+        // Delete parent
         let deleteResult = db.deleteObject(TestData.ParentRecord.self, id: "1")
-        
-        // Assert
         XCTAssertTrue(deleteResult)
         
-        // Verify child records are deleted
-        let childRecords = db.queryList(from: childTable)
-        XCTAssertEqual(childRecords.count, 0)
+        // Verify child is deleted
+        let remainingChildren: [TestData.ChildRecord] = db.query(from: childTable)
+        XCTAssertEqual(remainingChildren.count, 0)
     }
     
     /// Test foreign key constraints

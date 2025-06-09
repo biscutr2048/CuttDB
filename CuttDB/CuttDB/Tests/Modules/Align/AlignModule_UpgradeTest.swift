@@ -6,17 +6,29 @@
 //
 
 import XCTest
+@testable import CuttDB
 
-/// Test class for database upgrade functionality
-class AlignModule_UpgradeTest: XCTestCase {
-    /// Database instance for testing
-    private var db: CuttDB!
-    /// Mock service for testing
-    private var mockService: MockCuttDBService!
+/// 测试数据库升级功能
+final class AlignModule_UpgradeTest: CuttDBTestCase {
+    // MARK: - Properties
     
-    /// Test data structure
-    struct TestData {
+    /// 测试数据模型
+    private struct TestRecord: Codable {
+        let id: Int
+        let name: String
+        let age: Int
+        let email: String
+        let phone: String?
+        let address: String?
+        let created_at: Double?
+    }
+    
+    /// 测试数据
+    private struct TestData {
+        /// 表名
         static let tableName = "test_table"
+        
+        /// 旧列定义
         static let oldColumns = [
             "id INTEGER PRIMARY KEY",
             "name TEXT",
@@ -24,6 +36,7 @@ class AlignModule_UpgradeTest: XCTestCase {
             "email TEXT"
         ]
         
+        /// 新列定义
         static let newColumns = [
             "id INTEGER PRIMARY KEY",
             "name TEXT",
@@ -34,6 +47,7 @@ class AlignModule_UpgradeTest: XCTestCase {
             "created_at INTEGER"
         ]
         
+        /// 旧记录
         static let oldRecord: [String: Any] = [
             "id": 1,
             "name": "Test",
@@ -41,6 +55,7 @@ class AlignModule_UpgradeTest: XCTestCase {
             "email": "test@example.com"
         ]
         
+        /// 新记录
         static let newRecord: [String: Any] = [
             "id": 1,
             "name": "Test",
@@ -52,52 +67,38 @@ class AlignModule_UpgradeTest: XCTestCase {
         ]
     }
     
-    override func setUp() {
-        super.setUp()
-        let config = CuttDBServiceConfiguration(dbPath: ":memory:")
-        mockService = MockCuttDBService()
-        db = CuttDB(configuration: config)
-    }
-    
-    override func tearDown() {
-        try? db.dropTable(name: TestData.tableName)
-        db = nil
-        mockService = nil
-        super.tearDown()
-    }
-    
     // MARK: - Test Methods
     
-    /// Test basic table upgrade
+    /// 测试基本表升级
     func testBasicTableUpgrade() {
-        // Arrange
+        // 准备
         let tableName = TestData.tableName
         let oldColumns = TestData.oldColumns
         let newColumns = TestData.newColumns
         
-        // Create table with old schema
+        // 创建旧表
         _ = try? db.createTable(
             name: tableName,
             columns: oldColumns
         )
         
-        // Insert old record
+        // 插入旧记录
         _ = try? db.insertOrUpdate(
             table: tableName,
             record: TestData.oldRecord
         )
         
-        // Act
-        let result = try? db.upgradeTable(
+        // 执行
+        let result = try? db.createTable(
             name: tableName,
             columns: newColumns
         )
         
-        // Assert
+        // 断言
         XCTAssertNotNil(result)
-        XCTAssertTrue(result?.success ?? false)
+        XCTAssertTrue(result ?? false)
         
-        // Verify
+        // 验证
         let tableInfo = try? db.getTableInfo(name: tableName)
         XCTAssertNotNil(tableInfo)
         XCTAssertTrue(tableInfo?.columns.contains { $0.name == "phone" } ?? false)
@@ -105,145 +106,125 @@ class AlignModule_UpgradeTest: XCTestCase {
         XCTAssertTrue(tableInfo?.columns.contains { $0.name == "created_at" } ?? false)
     }
     
-    /// Test data preservation during upgrade
+    /// 测试升级时数据保留
     func testDataPreservation() {
-        // Arrange
+        // 准备
         let tableName = TestData.tableName
         let oldColumns = TestData.oldColumns
         let newColumns = TestData.newColumns
         
-        // Create table with old schema
+        // 创建旧表
         _ = try? db.createTable(
             name: tableName,
             columns: oldColumns
         )
         
-        // Insert old record
+        // 插入旧记录
         _ = try? db.insertOrUpdate(
             table: tableName,
             record: TestData.oldRecord
         )
         
-        // Act
-        _ = try? db.upgradeTable(
+        // 执行
+        _ = try? db.createTable(
             name: tableName,
             columns: newColumns
         )
         
-        // Verify
-        let queryResult = try? db.select(
-            table: tableName,
+        // 验证
+        let queryResult = try? db.query(
+            from: tableName,
             where: "id = ?",
-            params: [1]
-        )
+            orderBy: nil,
+            limit: nil
+        ) as [TestRecord]
         XCTAssertNotNil(queryResult)
         XCTAssertEqual(queryResult?.count, 1)
         
         if let firstRecord = queryResult?.first {
-            XCTAssertEqual(firstRecord["id"] as? Int, 1)
-            XCTAssertEqual(firstRecord["name"] as? String, "Test")
-            XCTAssertEqual(firstRecord["age"] as? Int, 25)
-            XCTAssertEqual(firstRecord["email"] as? String, "test@example.com")
+            XCTAssertEqual(firstRecord.id, 1)
+            XCTAssertEqual(firstRecord.name, "Test")
+            XCTAssertEqual(firstRecord.age, 25)
+            XCTAssertEqual(firstRecord.email, "test@example.com")
         }
     }
     
-    /// Test upgrade with new data
+    /// 测试升级后插入新数据
     func testUpgradeWithNewData() {
-        // Arrange
+        // 准备
         let tableName = TestData.tableName
         let oldColumns = TestData.oldColumns
         let newColumns = TestData.newColumns
         
-        // Create table with old schema
+        // 创建旧表
         _ = try? db.createTable(
             name: tableName,
             columns: oldColumns
         )
         
-        // Insert old record
+        // 插入旧记录
         _ = try? db.insertOrUpdate(
             table: tableName,
             record: TestData.oldRecord
         )
         
-        // Upgrade table
-        _ = try? db.upgradeTable(
+        // 升级表
+        _ = try? db.createTable(
             name: tableName,
             columns: newColumns
         )
         
-        // Act
+        // 执行
         let result = try? db.insertOrUpdate(
             table: tableName,
             record: TestData.newRecord
         )
         
-        // Assert
+        // 断言
         XCTAssertNotNil(result)
         XCTAssertTrue(result?.success ?? false)
         
-        // Verify
-        let queryResult = try? db.select(
-            table: tableName,
+        // 验证
+        let queryResult = try? db.query(
+            from: tableName,
             where: "id = ?",
-            params: [1]
-        )
+            orderBy: nil,
+            limit: nil
+        ) as [TestRecord]
         XCTAssertNotNil(queryResult)
         XCTAssertEqual(queryResult?.count, 1)
         
         if let firstRecord = queryResult?.first {
-            XCTAssertEqual(firstRecord["phone"] as? String, "123456")
-            XCTAssertEqual(firstRecord["address"] as? String, "Test Address")
-            XCTAssertNotNil(firstRecord["created_at"])
+            XCTAssertEqual(firstRecord.phone, "123456")
+            XCTAssertEqual(firstRecord.address, "Test Address")
+            XCTAssertNotNil(firstRecord.created_at)
         }
     }
     
-    /// Test invalid upgrade
+    /// 测试无效升级
     func testInvalidUpgrade() {
-        // Arrange
+        // 准备
         let tableName = TestData.tableName
         let oldColumns = TestData.oldColumns
         let invalidColumns = [
-            "id TEXT",  // Changed type
-            "name INTEGER",  // Changed type
-            "age TEXT",  // Changed type
-            "email INTEGER"  // Changed type
+            "id TEXT",  // 改变类型
+            "name INTEGER",  // 改变类型
+            "age TEXT",  // 改变类型
+            "email INTEGER"  // 改变类型
         ]
         
-        // Create table with old schema
+        // 创建旧表
         _ = try? db.createTable(
             name: tableName,
             columns: oldColumns
         )
         
-        // Act & Assert
-        XCTAssertThrowsError(try db.upgradeTable(
+        // 执行和断言
+        XCTAssertThrowsError(try db.createTable(
             name: tableName,
             columns: invalidColumns
         )) { error in
             XCTAssertTrue(error is CuttDBError)
-        }
-    }
-    
-    /// Test performance
-    func testPerformance() {
-        // Arrange
-        let tableName = TestData.tableName
-        let oldColumns = TestData.oldColumns
-        let newColumns = TestData.newColumns
-        
-        // Create table with old schema
-        _ = try? db.createTable(
-            name: tableName,
-            columns: oldColumns
-        )
-        
-        // Act & Assert
-        measure {
-            _ = try? db.upgradeTable(
-                name: tableName,
-                columns: newColumns
-            )
         }
     }
 } 

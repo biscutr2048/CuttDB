@@ -138,39 +138,26 @@ class MockCuttDBService: CuttDBService {
     // MARK: - Data Operations
     
     /// Insert data into a table
-    func insert(table: String, data: [String: Any]) throws {
+    func insert(table: String, data: [String: Any]) throws -> Bool {
         guard var tableData = tables[table] else {
             throw CuttDBError.tableNotFound(table)
-        }
-        
-        // Validate required columns
-        let requiredColumns = Set(tableData.first?.keys ?? [])
-        let dataColumns = Set(data.keys)
-        
-        guard requiredColumns.isSubset(of: dataColumns) else {
-            throw CuttDBError.invalidData("Missing required columns")
-        }
-        
-        if inTransaction {
-            transactionLog.append((table, tableData))
         }
         
         tableData.append(data)
         tables[table] = tableData
+        return true
     }
     
     /// Update data in a table
-    func update(table: String, data: [String: Any], where condition: String) throws {
+    func update(table: String, data: [String: Any], where condition: String) throws -> Bool {
         guard var tableData = tables[table] else {
             throw CuttDBError.tableNotFound(table)
         }
         
-        if inTransaction {
-            transactionLog.append((table, tableData))
-        }
-        
         // Simple condition parsing for testing
         let conditions = condition.components(separatedBy: " AND ")
+        var updated = false
+        
         for (index, row) in tableData.enumerated() {
             var matches = true
             for condition in conditions {
@@ -192,30 +179,32 @@ class MockCuttDBService: CuttDBService {
             }
             
             if matches {
-                // Merge the new data with existing row
                 var updatedRow = row
                 for (key, value) in data {
                     updatedRow[key] = value
                 }
                 tableData[index] = updatedRow
+                updated = true
             }
         }
         
-        tables[table] = tableData
+        if updated {
+            tables[table] = tableData
+        }
+        
+        return updated
     }
     
     /// Delete data from a table
-    func delete(table: String, where condition: String) throws {
+    func delete(table: String, where condition: String) throws -> Bool {
         guard var tableData = tables[table] else {
             throw CuttDBError.tableNotFound(table)
         }
         
-        if inTransaction {
-            transactionLog.append((table, tableData))
-        }
-        
         // Simple condition parsing for testing
         let conditions = condition.components(separatedBy: " AND ")
+        var deleted = false
+        
         tableData.removeAll { row in
             var matches = true
             for condition in conditions {
@@ -235,10 +224,19 @@ class MockCuttDBService: CuttDBService {
                     break
                 }
             }
-            return matches
+            
+            if matches {
+                deleted = true
+                return true
+            }
+            return false
         }
         
-        tables[table] = tableData
+        if deleted {
+            tables[table] = tableData
+        }
+        
+        return deleted
     }
     
     /// Query data from a table

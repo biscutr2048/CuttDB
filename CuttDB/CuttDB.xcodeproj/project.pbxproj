@@ -24,6 +24,51 @@
 		95038A5E2DF002D200CE756D /* CuttDB.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CuttDB.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		95202B552DF7341600D37EB3 /* CuttDBTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CuttDBTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		95202B752DF7352800D37EB3 /* XCTest.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = Platforms/MacOSX.platform/Developer/Library/Frameworks/XCTest.framework; sourceTree = DEVELOPER_DIR; };
+		95202B772DF7943D00D37EB3 /* dev_0609_biscutr.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = dev_0609_biscutr.md; sourceTree = "<group>"; };
+		95202B792DF7943D00D37EB3 /* CuttDBService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CuttDBService.swift; sourceTree = "<group>"; };
+		95202B7A2DF7943D00D37EB3 /* CuttDBServiceFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CuttDBServiceFactory.swift; sourceTree = "<group>"; };
+		95202B7C2DF7943D00D37EB3 /* CuttDB.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CuttDB.swift; sourceTree = "<group>"; };
+		95202B7E2DF7943D00D37EB3 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		95202B802DF7943D00D37EB3 /* DataAligner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataAligner.swift; sourceTree = "<group>"; };
+		95202B812DF7943D00D37EB3 /* TableAligner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TableAligner.swift; sourceTree = "<group>"; };
+		95202B832DF7943D00D37EB3 /* IndexManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IndexManager.swift; sourceTree = "<group>"; };
+		95202B842DF7943D00D37EB3 /* TableDefinitionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TableDefinitionManager.swift; sourceTree = "<group>"; };
+		95202B852DF7943D00D37EB3 /* TableManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TableManager.swift; sourceTree = "<group>"; };
+		95202B872DF7943D00D37EB3 /* BatchManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatchManager.swift; sourceTree = "<group>"; };
+		95202B882DF7943D00D37EB3 /* DataManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataManager.swift; sourceTree = "<group>"; };
+		95202B892DF7943D00D37EB3 /* DeleteManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeleteManager.swift; sourceTree = "<group>"; };
+		95202B8A2DF7943D00D37EB3 /* InsertManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsertManager.swift; sourceTree = "<group>"; };
+		95202B8B2DF7943D00D37EB3 /* UpdateManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateManager.swift; sourceTree = "<group>"; };
+		95202B8D2DF7943D00D37EB3 /* ResponseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResponseManager.swift; sourceTree = "<group>"; };
+		95202B8E2DF7943D00D37EB3 /* VectorManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VectorManager.swift; sourceTree = "<group>"; };
+		95202B902DF7943D00D37EB3 /* ListQuery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListQuery.swift; sourceTree = "<group>"; };
+		95202B912DF7943D00D37EB3 /* ObjectQuery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ObjectQuery.swift; sourceTree = "<group>"; };
+		95202B922DF7943D00D37EB3 /* OfflineQuery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineQuery.swift; sourceTree = "<group>"; };
+		95202B932DF7943D00D37EB3 /* PagedQuery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PagedQuery.swift; sourceTree = "<group>"; };
+		95202B942DF7943D00D37EB3 /* QueryManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueryManager.swift; sourceTree = "<group>"; };
+		95202B982DF7943D00D37EB3 /* AlignModule_CleanupTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlignModule_CleanupTest.swift; sourceTree = "<group>"; };
+		95202B992DF7943D00D37EB3 /* AlignModule_UpgradeTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlignModule_UpgradeTest.swift; sourceTree = "<group>"; };
+		95202B9B2DF7943D00D37EB3 /* CreateModule_AutoCreateTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateModule_AutoCreateTest.swift; sourceTree = "<group>"; };
+		95202B9C2DF7943D00D37EB3 /* CreateModule_SubTableTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateModule_SubTableTest.swift; sourceTree = "<group>"; };
+		95202B9D2DF7943D00D37EB3 /* CreateModule_TableDefinitionTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateModule_TableDefinitionTest.swift; sourceTree = "<group>"; };
+		95202B9F2DF7943D00D37EB3 /* DeleteModule_AgingTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeleteModule_AgingTest.swift; sourceTree = "<group>"; };
+		95202BA02DF7943D00D37EB3 /* DeleteModule_BatchTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeleteModule_BatchTest.swift; sourceTree = "<group>"; };
+		95202BA12DF7943D00D37EB3 /* InsertUpdateModule_SQLTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsertUpdateModule_SQLTest.swift; sourceTree = "<group>"; };
+		95202BA22DF7943D00D37EB3 /* InsertUpdateModule_TransactionTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsertUpdateModule_TransactionTest.swift; sourceTree = "<group>"; };
+		95202BA32DF7943D00D37EB3 /* ListPropertiesModule_ComplexTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListPropertiesModule_ComplexTest.swift; sourceTree = "<group>"; };
+		95202BA52DF7943D00D37EB3 /* MechanismModule_IndexTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MechanismModule_IndexTest.swift; sourceTree = "<group>"; };
+		95202BA62DF7943D00D37EB3 /* MechanismModule_ResponseTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MechanismModule_ResponseTest.swift; sourceTree = "<group>"; };
+		95202BA82DF7943D00D37EB3 /* SelectModule_OfflineTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectModule_OfflineTest.swift; sourceTree = "<group>"; };
+		95202BA92DF7943D00D37EB3 /* SelectModule_PagedQueryTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectModule_PagedQueryTest.swift; sourceTree = "<group>"; };
+		95202BAC2DF7943D00D37EB3 /* CuttDBTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CuttDBTest.swift; sourceTree = "<group>"; };
+		95202BAD2DF7943D00D37EB3 /* MockCuttDBService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockCuttDBService.swift; sourceTree = "<group>"; };
+		95202BAE2DF7943D00D37EB3 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		95202BB22DF7943D00D37EB3 /* SQLGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SQLGenerator.swift; sourceTree = "<group>"; };
+		95202BB32DF7943D00D37EB3 /* StringUtils.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StringUtils.swift; sourceTree = "<group>"; };
+		95202BB52DF7943D00D37EB3 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		95202BB62DF7943D00D37EB3 /* CuttDB.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = CuttDB.entitlements; sourceTree = "<group>"; };
+		95202BB72DF7943D00D37EB3 /* CuttDBApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CuttDBApp.swift; sourceTree = "<group>"; };
+		95202BB92DF7944E00D37EB3 /* CuttDB.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = CuttDB.xcodeproj; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -123,9 +168,235 @@
 		95202B742DF7352800D37EB3 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				95202BB92DF7944E00D37EB3 /* CuttDB.xcodeproj */,
+				95202BB82DF7943D00D37EB3 /* CuttDB */,
 				95202B752DF7352800D37EB3 /* XCTest.framework */,
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		95202B782DF7943D00D37EB3 /* _note */ = {
+			isa = PBXGroup;
+			children = (
+				95202B772DF7943D00D37EB3 /* dev_0609_biscutr.md */,
+			);
+			path = _note;
+			sourceTree = "<group>";
+		};
+		95202B7B2DF7943D00D37EB3 /* Service */ = {
+			isa = PBXGroup;
+			children = (
+				95202B792DF7943D00D37EB3 /* CuttDBService.swift */,
+				95202B7A2DF7943D00D37EB3 /* CuttDBServiceFactory.swift */,
+			);
+			path = Service;
+			sourceTree = "<group>";
+		};
+		95202B7D2DF7943D00D37EB3 /* Core */ = {
+			isa = PBXGroup;
+			children = (
+				95202B7B2DF7943D00D37EB3 /* Service */,
+				95202B7C2DF7943D00D37EB3 /* CuttDB.swift */,
+			);
+			path = Core;
+			sourceTree = "<group>";
+		};
+		95202B7F2DF7943D00D37EB3 /* CuttDB */ = {
+			isa = PBXGroup;
+			children = (
+				95202B7E2DF7943D00D37EB3 /* ContentView.swift */,
+			);
+			path = CuttDB;
+			sourceTree = "<group>";
+		};
+		95202B822DF7943D00D37EB3 /* Align */ = {
+			isa = PBXGroup;
+			children = (
+				95202B802DF7943D00D37EB3 /* DataAligner.swift */,
+				95202B812DF7943D00D37EB3 /* TableAligner.swift */,
+			);
+			path = Align;
+			sourceTree = "<group>";
+		};
+		95202B862DF7943D00D37EB3 /* Create */ = {
+			isa = PBXGroup;
+			children = (
+				95202B832DF7943D00D37EB3 /* IndexManager.swift */,
+				95202B842DF7943D00D37EB3 /* TableDefinitionManager.swift */,
+				95202B852DF7943D00D37EB3 /* TableManager.swift */,
+			);
+			path = Create;
+			sourceTree = "<group>";
+		};
+		95202B8C2DF7943D00D37EB3 /* Data */ = {
+			isa = PBXGroup;
+			children = (
+				95202B872DF7943D00D37EB3 /* BatchManager.swift */,
+				95202B882DF7943D00D37EB3 /* DataManager.swift */,
+				95202B892DF7943D00D37EB3 /* DeleteManager.swift */,
+				95202B8A2DF7943D00D37EB3 /* InsertManager.swift */,
+				95202B8B2DF7943D00D37EB3 /* UpdateManager.swift */,
+			);
+			path = Data;
+			sourceTree = "<group>";
+		};
+		95202B8F2DF7943D00D37EB3 /* Mechanism */ = {
+			isa = PBXGroup;
+			children = (
+				95202B8D2DF7943D00D37EB3 /* ResponseManager.swift */,
+				95202B8E2DF7943D00D37EB3 /* VectorManager.swift */,
+			);
+			path = Mechanism;
+			sourceTree = "<group>";
+		};
+		95202B952DF7943D00D37EB3 /* Select */ = {
+			isa = PBXGroup;
+			children = (
+				95202B902DF7943D00D37EB3 /* ListQuery.swift */,
+				95202B912DF7943D00D37EB3 /* ObjectQuery.swift */,
+				95202B922DF7943D00D37EB3 /* OfflineQuery.swift */,
+				95202B932DF7943D00D37EB3 /* PagedQuery.swift */,
+				95202B942DF7943D00D37EB3 /* QueryManager.swift */,
+			);
+			path = Select;
+			sourceTree = "<group>";
+		};
+		95202B962DF7943D00D37EB3 /* Modules */ = {
+			isa = PBXGroup;
+			children = (
+				95202B822DF7943D00D37EB3 /* Align */,
+				95202B862DF7943D00D37EB3 /* Create */,
+				95202B8C2DF7943D00D37EB3 /* Data */,
+				95202B8F2DF7943D00D37EB3 /* Mechanism */,
+				95202B952DF7943D00D37EB3 /* Select */,
+			);
+			path = Modules;
+			sourceTree = "<group>";
+		};
+		95202B972DF7943D00D37EB3 /* Core */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Core;
+			sourceTree = "<group>";
+		};
+		95202B9A2DF7943D00D37EB3 /* Align */ = {
+			isa = PBXGroup;
+			children = (
+				95202B982DF7943D00D37EB3 /* AlignModule_CleanupTest.swift */,
+				95202B992DF7943D00D37EB3 /* AlignModule_UpgradeTest.swift */,
+			);
+			path = Align;
+			sourceTree = "<group>";
+		};
+		95202B9E2DF7943D00D37EB3 /* Create */ = {
+			isa = PBXGroup;
+			children = (
+				95202B9B2DF7943D00D37EB3 /* CreateModule_AutoCreateTest.swift */,
+				95202B9C2DF7943D00D37EB3 /* CreateModule_SubTableTest.swift */,
+				95202B9D2DF7943D00D37EB3 /* CreateModule_TableDefinitionTest.swift */,
+			);
+			path = Create;
+			sourceTree = "<group>";
+		};
+		95202BA42DF7943D00D37EB3 /* Data */ = {
+			isa = PBXGroup;
+			children = (
+				95202B9F2DF7943D00D37EB3 /* DeleteModule_AgingTest.swift */,
+				95202BA02DF7943D00D37EB3 /* DeleteModule_BatchTest.swift */,
+				95202BA12DF7943D00D37EB3 /* InsertUpdateModule_SQLTest.swift */,
+				95202BA22DF7943D00D37EB3 /* InsertUpdateModule_TransactionTest.swift */,
+				95202BA32DF7943D00D37EB3 /* ListPropertiesModule_ComplexTest.swift */,
+			);
+			path = Data;
+			sourceTree = "<group>";
+		};
+		95202BA72DF7943D00D37EB3 /* Mechanism */ = {
+			isa = PBXGroup;
+			children = (
+				95202BA52DF7943D00D37EB3 /* MechanismModule_IndexTest.swift */,
+				95202BA62DF7943D00D37EB3 /* MechanismModule_ResponseTest.swift */,
+			);
+			path = Mechanism;
+			sourceTree = "<group>";
+		};
+		95202BAA2DF7943D00D37EB3 /* Select */ = {
+			isa = PBXGroup;
+			children = (
+				95202BA82DF7943D00D37EB3 /* SelectModule_OfflineTest.swift */,
+				95202BA92DF7943D00D37EB3 /* SelectModule_PagedQueryTest.swift */,
+			);
+			path = Select;
+			sourceTree = "<group>";
+		};
+		95202BAB2DF7943D00D37EB3 /* Modules */ = {
+			isa = PBXGroup;
+			children = (
+				95202B9A2DF7943D00D37EB3 /* Align */,
+				95202B9E2DF7943D00D37EB3 /* Create */,
+				95202BA42DF7943D00D37EB3 /* Data */,
+				95202BA72DF7943D00D37EB3 /* Mechanism */,
+				95202BAA2DF7943D00D37EB3 /* Select */,
+			);
+			path = Modules;
+			sourceTree = "<group>";
+		};
+		95202BAF2DF7943D00D37EB3 /* TestInfrastructure */ = {
+			isa = PBXGroup;
+			children = (
+				95202BAC2DF7943D00D37EB3 /* CuttDBTest.swift */,
+				95202BAD2DF7943D00D37EB3 /* MockCuttDBService.swift */,
+				95202BAE2DF7943D00D37EB3 /* README.md */,
+			);
+			path = TestInfrastructure;
+			sourceTree = "<group>";
+		};
+		95202BB02DF7943D00D37EB3 /* Utils */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Utils;
+			sourceTree = "<group>";
+		};
+		95202BB12DF7943D00D37EB3 /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+				95202B972DF7943D00D37EB3 /* Core */,
+				95202BAB2DF7943D00D37EB3 /* Modules */,
+				95202BAF2DF7943D00D37EB3 /* TestInfrastructure */,
+				95202BB02DF7943D00D37EB3 /* Utils */,
+			);
+			path = Tests;
+			sourceTree = "<group>";
+		};
+		95202BB42DF7943D00D37EB3 /* Utils */ = {
+			isa = PBXGroup;
+			children = (
+				95202BB22DF7943D00D37EB3 /* SQLGenerator.swift */,
+				95202BB32DF7943D00D37EB3 /* StringUtils.swift */,
+			);
+			path = Utils;
+			sourceTree = "<group>";
+		};
+		95202BB82DF7943D00D37EB3 /* CuttDB */ = {
+			isa = PBXGroup;
+			children = (
+				95202B782DF7943D00D37EB3 /* _note */,
+				95202B7D2DF7943D00D37EB3 /* Core */,
+				95202B7F2DF7943D00D37EB3 /* CuttDB */,
+				95202B962DF7943D00D37EB3 /* Modules */,
+				95202BB12DF7943D00D37EB3 /* Tests */,
+				95202BB42DF7943D00D37EB3 /* Utils */,
+				95202BB52DF7943D00D37EB3 /* Assets.xcassets */,
+				95202BB62DF7943D00D37EB3 /* CuttDB.entitlements */,
+				95202BB72DF7943D00D37EB3 /* CuttDBApp.swift */,
+			);
+			path = CuttDB;
+			sourceTree = "<group>";
+		};
+		95202BBA2DF7944E00D37EB3 /* Products */ = {
+			isa = PBXGroup;
+			name = Products;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -209,6 +480,12 @@
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 9507E76A2DE9CCE600B26422;
 			projectDirPath = "";
+			projectReferences = (
+				{
+					ProductGroup = 95202BBA2DF7944E00D37EB3 /* Products */;
+					ProjectRef = 95202BB92DF7944E00D37EB3 /* CuttDB.xcodeproj */;
+				},
+			);
 			projectRoot = "";
 			targets = (
 				9507E7722DE9CCE600B26422 /* CuttDB */,
@@ -295,6 +572,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEFINES_MODULE = YES;
 				DEVELOPMENT_TEAM = 7LMSKCAH58;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
@@ -363,6 +641,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEFINES_MODULE = YES;
 				DEVELOPMENT_TEAM = 7LMSKCAH58;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -397,6 +676,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
 				DEVELOPMENT_TEAM = 7LMSKCAH58;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -427,6 +707,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
 				DEVELOPMENT_TEAM = 7LMSKCAH58;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -456,6 +737,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 7LMSKCAH58;
 				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 12.4;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.2048image.cutt.CuttDBTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -473,6 +755,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 7LMSKCAH58;
 				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 12.4;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.2048image.cutt.CuttDBTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
