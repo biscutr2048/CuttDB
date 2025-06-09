@@ -14,6 +14,7 @@ public struct CuttDB {
     // MARK: - Initialization
     public init(configuration: CuttDBServiceConfiguration) {
         self.service = CuttDBServiceFactory.shared.createService(configuration: configuration)
+        self.dbPath = configuration.dbPath
         self.tableManager = TableManager(service: service)
         self.tableDefinitionManager = TableDefinitionManager(service: service)
         self.queryManager = QueryManager(service: service)

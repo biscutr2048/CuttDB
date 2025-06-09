@@ -138,7 +138,7 @@ internal struct TableAligner {
         if !idsToDelete.isEmpty {
             let idList = idsToDelete.map { "'\(StringUtils.escapeSQLString($0))'" }.joined(separator: ", ")
             let sql = "DELETE FROM \(targetTable) WHERE \(idColumn) IN (\(idList))"
-            return service.execute(sql: sql, parameters: nil)
+            return service.execute(sql: sql, parameters: nil) > 0
         }
         
         return true
