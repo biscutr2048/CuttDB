@@ -12,90 +12,71 @@ public struct CuttDB {
     private let sqlGenerator: SQLGenerator
     
     // MARK: - Initialization
-    public init(dbName: String = "cuttDB.sqlite") {
-        let fileManager = FileManager.default
-        let documentsPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        self.dbPath = documentsPath.appendingPathComponent(dbName).path
-        let configuration = CuttDBServiceConfiguration(dbPath: dbPath)
+    public init(configuration: CuttDBServiceConfiguration) {
         self.service = CuttDBServiceFactory.shared.createService(configuration: configuration)
         self.tableManager = TableManager(service: service)
-        self.dataManager = DataManager(service: service)
-        self.queryManager = QueryManager(service: service)
         self.tableDefinitionManager = TableDefinitionManager(service: service)
+        self.queryManager = QueryManager(service: service)
+        self.dataManager = DataManager(service: service)
         self.sqlGenerator = SQLGenerator()
     }
     
     // MARK: - Internal Table Management
     
-    internal func ensureTableExists(tableName: String, columns: [String]) -> Bool {
-        return tableManager.ensureTableExists(tableName: tableName, columns: columns)
+    @discardableResult
+    public func ensureTableExists(tableName: String, columns: [String: String]) -> Bool {
+        return tableManager.ensureTableExists(tableName: tableName, columns: Array(columns.keys))
     }
     
-    internal func ensureSubTableExists(tableName: String, property: String, columns: [String]) -> Bool {
-        return tableManager.ensureSubTableExists(tableName: tableName, property: property, columns: columns)
+    @discardableResult
+    public func ensureSubTableExists(parentTable: String, subTable: String, columns: [String: String]) -> Bool {
+        return tableManager.ensureSubTableExists(tableName: parentTable, property: subTable, columns: Array(columns.keys))
     }
     
-    internal func createTableFromJSON(tableName: String, json: Any) -> Bool {
-        guard let definition = json as? [String: Any] else { return false }
-        return tableDefinitionManager.createTableDefinition(tableName: tableName, definition: definition)
+    @discardableResult
+    public func createTableFromJSON(tableName: String, json: [String: Any]) -> Bool {
+        return tableDefinitionManager.createTableDefinition(tableName: tableName, definition: json)
     }
     
-    internal func validateTableStructure(tableName: String, expectedColumns: [String: String]) -> Bool {
-        return tableDefinitionManager.validateTableStructure(tableName: tableName, expectedColumns: expectedColumns)
+    public func validateTableStructure(tableName: String, columns: [String: String]) -> Bool {
+        return tableDefinitionManager.validateTableStructure(tableName: tableName, expectedColumns: columns)
     }
     
     // MARK: - Public Data Operations
     
-    /// 保存对象到数据库
-    /// - Parameters:
-    ///   - object: 要保存的对象
-    ///   - tableName: 表名
-    /// - Returns: 是否保存成功
-    public func saveObject<T: Encodable>(_ object: T, to tableName: String) -> Bool {
-        do {
-            let data = try JSONEncoder().encode(object)
-            guard let dict = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                return false
-            }
-            return dataManager.insert(tableName: tableName, values: dict)
-        } catch {
+    @discardableResult
+    public func saveObject<T: Encodable>(_ object: T) -> Bool {
+        guard let tableName = String(describing: type(of: object)).components(separatedBy: ".").last,
+              let jsonData = try? JSONEncoder().encode(object),
+              let dict = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] else {
             return false
         }
-    }
-    
-    /// 插入对象到数据库
-    /// - Parameters:
-    ///   - object: 要插入的对象
-    ///   - tableName: 表名
-    /// - Returns: 是否插入成功
-    public func insertObject<T: Encodable>(_ object: T, to tableName: String) -> Bool {
-        do {
-            let data = try JSONEncoder().encode(object)
-            guard let dict = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                return false
-            }
-            return dataManager.insert(tableName: tableName, values: dict)
-        } catch {
-            return false
-        }
-    }
-    
-    /// 更新数据库中的对象
-    /// - Parameters:
-    ///   - object: 要更新的对象
-    ///   - tableName: 表名
-    ///   - id: 对象ID
-    /// - Returns: 是否更新成功
-    public func updateObject<T: Encodable>(_ object: T, in tableName: String, id: String) -> Bool {
-        do {
-            let data = try JSONEncoder().encode(object)
-            guard let dict = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                return false
-            }
+        if let id = dict["id"] as? String {
             return dataManager.updateById(tableName: tableName, id: id, values: dict)
-        } catch {
+        } else {
+            return dataManager.insert(tableName: tableName, values: dict)
+        }
+    }
+    
+    @discardableResult
+    public func insertObject<T: Encodable>(_ object: T) -> Bool {
+        guard let tableName = String(describing: type(of: object)).components(separatedBy: ".").last,
+              let jsonData = try? JSONEncoder().encode(object),
+              let dict = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] else {
             return false
         }
+        return dataManager.insert(tableName: tableName, values: dict)
+    }
+    
+    @discardableResult
+    public func updateObject<T: Encodable>(_ object: T) -> Bool {
+        guard let tableName = String(describing: type(of: object)).components(separatedBy: ".").last,
+              let jsonData = try? JSONEncoder().encode(object),
+              let dict = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
+              let id = dict["id"] as? String else {
+            return false
+        }
+        return dataManager.updateById(tableName: tableName, id: id, values: dict)
     }
     
     /// 查询数据库中的对象
@@ -106,7 +87,14 @@ public struct CuttDB {
     ///   - limit: 限制数量
     /// - Returns: 查询结果数组
     public func query<T: Codable>(from tableName: String, where condition: String? = nil, orderBy: String? = nil, limit: Int? = nil) -> [T] {
-        return queryManager.query(from: tableName, where: condition, orderBy: orderBy, limit: limit)
+        let results = queryManager.query(tableName: tableName, columns: ["*"], whereClause: condition, parameters: nil)
+        return results.compactMap { dict in
+            guard let jsonData = try? JSONSerialization.data(withJSONObject: dict),
+                  let object = try? JSONDecoder().decode(T.self, from: jsonData) else {
+                return nil
+            }
+            return object
+        }
     }
     
     /// 分页查询数据库中的对象
@@ -118,7 +106,14 @@ public struct CuttDB {
     ///   - orderBy: 排序条件
     /// - Returns: 查询结果数组
     public func pagedQuery<T: Codable>(from tableName: String, page: Int, pageSize: Int, where condition: String? = nil, orderBy: String? = nil) -> [T] {
-        return queryManager.pagedQuery(from: tableName, page: page, pageSize: pageSize, where: condition, orderBy: orderBy)
+        let results = queryManager.queryWithPagination(tableName: tableName, page: page, pageSize: pageSize, columns: ["*"], whereClause: condition, parameters: nil, orderBy: orderBy)
+        return results.compactMap { dict in
+            guard let jsonData = try? JSONSerialization.data(withJSONObject: dict),
+                  let object = try? JSONDecoder().decode(T.self, from: jsonData) else {
+                return nil
+            }
+            return object
+        }
     }
     
     /// 离线查询数据库中的对象
@@ -129,22 +124,79 @@ public struct CuttDB {
     ///   - limit: 限制数量
     /// - Returns: 查询结果数组
     public func offlineQuery<T: Codable>(from tableName: String, where condition: String? = nil, orderBy: String? = nil, limit: Int? = nil) -> [T] {
-        return queryManager.offlineQuery(from: tableName, where: condition, orderBy: orderBy, limit: limit)
+        let results = queryManager.query(tableName: tableName, columns: ["*"], whereClause: condition, parameters: nil)
+        return results.compactMap { dict in
+            guard let jsonData = try? JSONSerialization.data(withJSONObject: dict),
+                  let object = try? JSONDecoder().decode(T.self, from: jsonData) else {
+                return nil
+            }
+            return object
+        }
     }
     
     // MARK: - Internal Query Operations
     
     internal func queryObject(from tableName: String, where whereClause: String) -> [String: Any]? {
-        return queryManager.queryObject(from: tableName, where: whereClause)
+        return queryManager.queryObject(tableName: tableName, id: whereClause)
     }
     
     internal func queryList(from tableName: String, where whereClause: String? = nil, orderBy: String? = nil, limit: Int? = nil) -> [[String: Any]] {
-        return queryManager.queryList(from: tableName, where: whereClause, orderBy: orderBy, limit: limit)
+        return queryManager.query(tableName: tableName, columns: ["*"], whereClause: whereClause, parameters: nil)
     }
     
     // MARK: - Request Index Key Generation
     
     internal func generateRequestIndexKey(api: String, method: String) -> String {
         return "\(api)_\(method)"
+    }
+    
+    public func queryObjects<T: Decodable>(_ type: T.Type, whereClause: String? = nil, parameters: [Any]? = nil) -> [T] {
+        let tableName = String(describing: type).components(separatedBy: ".").last ?? ""
+        let results = queryManager.query(tableName: tableName, columns: ["*"], whereClause: whereClause, parameters: parameters)
+        return results.compactMap { dict in
+            guard let jsonData = try? JSONSerialization.data(withJSONObject: dict),
+                  let object = try? JSONDecoder().decode(T.self, from: jsonData) else {
+                return nil
+            }
+            return object
+        }
+    }
+    
+    public func queryWithPagination<T: Decodable>(_ type: T.Type, page: Int, pageSize: Int, whereClause: String? = nil, parameters: [Any]? = nil, orderBy: String? = nil) -> [T] {
+        let tableName = String(describing: type).components(separatedBy: ".").last ?? ""
+        let results = queryManager.queryWithPagination(tableName: tableName, page: page, pageSize: pageSize, columns: ["*"], whereClause: whereClause, parameters: parameters, orderBy: orderBy)
+        return results.compactMap { dict in
+            guard let jsonData = try? JSONSerialization.data(withJSONObject: dict),
+                  let object = try? JSONDecoder().decode(T.self, from: jsonData) else {
+                return nil
+            }
+            return object
+        }
+    }
+    
+    public func queryObject<T: Decodable>(_ type: T.Type, id: String) -> T? {
+        let tableName = String(describing: type).components(separatedBy: ".").last ?? ""
+        guard let dict = queryManager.queryObject(tableName: tableName, id: id),
+              let jsonData = try? JSONSerialization.data(withJSONObject: dict),
+              let object = try? JSONDecoder().decode(T.self, from: jsonData) else {
+            return nil
+        }
+        return object
+    }
+    
+    @discardableResult
+    public func deleteObject<T>(_ type: T.Type, id: String) -> Bool {
+        let tableName = String(describing: type).components(separatedBy: ".").last ?? ""
+        return dataManager.deleteById(tableName: tableName, id: id)
+    }
+    
+    public func getTotalCount<T>(_ type: T.Type, whereClause: String? = nil, parameters: [Any]? = nil) -> Int {
+        let tableName = String(describing: type).components(separatedBy: ".").last ?? ""
+        return queryManager.getTotalCount(tableName: tableName, whereClause: whereClause, parameters: parameters)
+    }
+    
+    public func exists<T>(_ type: T.Type, whereClause: String, parameters: [Any]? = nil) -> Bool {
+        let tableName = String(describing: type).components(separatedBy: ".").last ?? ""
+        return queryManager.exists(tableName: tableName, whereClause: whereClause, parameters: parameters)
     }
 } 

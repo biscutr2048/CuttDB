@@ -79,7 +79,7 @@ internal struct TableDefinitionManager {
     
     /// 创建单个索引
     private func createIndexIfNeeded(tableName: String, indexName: String, columns: [String]) -> Bool {
-        return indexManager.createIndexIfNeeded(tableName: tableName, indexName: indexName, columns: columns)
+        return indexManager.createIndex(tableName: tableName, indexName: indexName, columns: columns)
     }
     
     /// 从JSON提取表定义

@@ -17,7 +17,7 @@ public struct ListQuery {
     /// - Returns: 查询结果列表
     public func queryList(tableName: String, whereClause: String? = nil, orderBy: String? = nil, columns: [String] = ["*"]) -> [[String: Any]] {
         let sql = generateSelectSQL(tableName: tableName, whereClause: whereClause, orderBy: orderBy, columns: columns)
-        return service.query(sql)
+        return service.query(sql: sql, parameters: nil)
     }
     
     /// 查询子表列表
