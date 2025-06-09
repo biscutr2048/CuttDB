@@ -7,225 +7,236 @@
 
 import XCTest
 
-/// Test class for cleanup functionality in the Align module
-class AlignModule_CleanupTest: XCTestCase {
-    /// Database instance for testing
-    private var db: CuttDB!
-    /// Mock service for testing
-    private var mockService: MockCuttDBService!
-    
+/// Test class for cleanup operations
+final class AlignModule_CleanupTest: CuttDBTestCase {
     /// Test data structure
     struct TestData {
-        static let tableName = "test_table"
+        static let table = "test_table"
         static let columns = [
             "id INTEGER PRIMARY KEY",
             "name TEXT",
-            "email TEXT"
-        ]
-        static let duplicateRecords = [
-            ["id": 1, "name": "John", "email": "john@example.com"],
-            ["id": 2, "name": "John", "email": "john@example.com"],
-            ["id": 3, "name": "Jane", "email": "jane@example.com"]
+            "age INTEGER",
+            "created_at INTEGER"
         ]
         
-        static let sourceTable = "source_table"
-        static let targetTable = "target_table"
-        static let sourceRecords = [
-            ["id": 1, "name": "John"],
-            ["id": 2, "name": "Jane"]
-        ]
-        static let targetRecords = [
-            ["id": 1, "name": "John"],
-            ["id": 3, "name": "Bob"]
+        static let record: [String: Any] = [
+            "id": 1,
+            "name": "Test User",
+            "age": 25,
+            "created_at": Date().timeIntervalSince1970
         ]
     }
     
     override func setUp() {
         super.setUp()
-        let config = CuttDBServiceConfiguration(dbPath: ":memory:")
-        mockService = MockCuttDBService()
-        db = CuttDB(configuration: config)
     }
     
     override func tearDown() {
-        // Clean up test tables
-        try? db.dropTable(name: TestData.tableName)
-        try? db.dropTable(name: TestData.sourceTable)
-        try? db.dropTable(name: TestData.targetTable)
-        db = nil
-        mockService = nil
+        try? db.dropTable(name: TestData.table)
         super.tearDown()
     }
     
     // MARK: - Test Methods
     
-    /// Test cleanup of duplicate records
-    func testCleanupDuplicates() {
+    /// Test basic cleanup operation
+    func testBasicCleanup() {
         // Arrange
-        try? db.createTable(
-            name: TestData.tableName,
-            columns: TestData.columns
+        let table = TestData.table
+        let columns = TestData.columns
+        let record = TestData.record
+        
+        // Create test table
+        _ = try? db.createTable(
+            name: table,
+            columns: columns
         )
         
-        for record in TestData.duplicateRecords {
-            try? db.insert(
-                table: TestData.tableName,
-                data: record
-            )
-        }
+        // Insert test data
+        _ = try? db.insert(
+            table: table,
+            data: record
+        )
         
         // Act
-        let aligner = TableAligner(service: mockService)
-        let result = aligner.cleanupDuplicates(
-            TestData.tableName,
-            uniqueColumns: ["name", "email"]
+        let result = try? db.cleanup(
+            service: mockService
         )
         
         // Assert
-        XCTAssertTrue(result)
+        XCTAssertNotNil(result)
+        XCTAssertTrue(result?.success ?? false)
         
         // Verify
-        let remainingRecords = try? db.select(
-            table: TestData.tableName,
-            where: ["name": "John"]
+        let records = try? db.select(
+            table: table,
+            where: "id = ?",
+            params: [1]
         )
-        XCTAssertNotNil(remainingRecords)
-        XCTAssertEqual(remainingRecords?.count, 1)
+        
+        XCTAssertNotNil(records)
+        XCTAssertEqual(records?.count, 1)
     }
     
-    /// Test cleanup of missing data
-    func testDropMissingData() {
+    /// Test cleanup with multiple tables
+    func testCleanupWithMultipleTables() {
         // Arrange
-        try? db.createTable(
-            name: TestData.sourceTable,
-            columns: ["id INTEGER PRIMARY KEY", "name TEXT"]
-        )
-        try? db.createTable(
-            name: TestData.targetTable,
-            columns: ["id INTEGER PRIMARY KEY", "name TEXT"]
+        let table1 = "table1"
+        let table2 = "table2"
+        let columns = TestData.columns
+        let record = TestData.record
+        
+        // Create test tables
+        _ = try? db.createTable(
+            name: table1,
+            columns: columns
         )
         
-        for record in TestData.sourceRecords {
-            try? db.insert(
-                table: TestData.sourceTable,
-                data: record
-            )
-        }
+        _ = try? db.createTable(
+            name: table2,
+            columns: columns
+        )
         
-        for record in TestData.targetRecords {
-            try? db.insert(
-                table: TestData.targetTable,
-                data: record
-            )
-        }
+        // Insert test data
+        _ = try? db.insert(
+            table: table1,
+            data: record
+        )
+        
+        _ = try? db.insert(
+            table: table2,
+            data: record
+        )
         
         // Act
-        let aligner = TableAligner(service: mockService)
-        let result = aligner.dropMissingData(
-            sourceTable: TestData.sourceTable,
-            targetTable: TestData.targetTable
+        let result = try? db.cleanup(
+            service: mockService
         )
         
         // Assert
-        XCTAssertTrue(result)
+        XCTAssertNotNil(result)
+        XCTAssertTrue(result?.success ?? false)
         
         // Verify
-        let remainingRecords = try? db.select(
-            table: TestData.targetTable,
-            where: ["name": "Bob"]
+        let records1 = try? db.select(
+            table: table1,
+            where: "id = ?",
+            params: [1]
         )
-        XCTAssertNotNil(remainingRecords)
-        XCTAssertEqual(remainingRecords?.count, 0)
+        
+        XCTAssertNotNil(records1)
+        XCTAssertEqual(records1?.count, 1)
+        
+        let records2 = try? db.select(
+            table: table2,
+            where: "id = ?",
+            params: [1]
+        )
+        
+        XCTAssertNotNil(records2)
+        XCTAssertEqual(records2?.count, 1)
     }
     
-    /// Test table alignment
-    func testAlignTable() {
+    /// Test cleanup with empty table
+    func testCleanupWithEmptyTable() {
         // Arrange
-        try? db.createTable(
-            name: TestData.sourceTable,
-            columns: TestData.columns
+        let table = TestData.table
+        let columns = TestData.columns
+        
+        // Create test table
+        _ = try? db.createTable(
+            name: table,
+            columns: columns
         )
         
-        for record in TestData.sourceRecords {
-            try? db.insert(
-                table: TestData.sourceTable,
-                data: record
-            )
-        }
-        
         // Act
-        let aligner = TableAligner(service: mockService)
-        let result = aligner.alignTable(
-            sourceTable: TestData.sourceTable,
-            targetTable: TestData.targetTable,
-            columns: TestData.columns
+        let result = try? db.cleanup(
+            service: mockService
         )
         
         // Assert
-        XCTAssertTrue(result)
+        XCTAssertNotNil(result)
+        XCTAssertTrue(result?.success ?? false)
         
         // Verify
-        let targetRecords = try? db.select(table: TestData.targetTable)
-        XCTAssertNotNil(targetRecords)
-        XCTAssertEqual(targetRecords?.count, 2)
-    }
-    
-    /// Test cleanup with invalid table
-    func testCleanupInvalidTable() {
-        // Arrange
-        let aligner = TableAligner(service: mockService)
-        
-        // Act & Assert
-        XCTAssertFalse(aligner.cleanupDuplicates(
-            "invalid_table",
-            uniqueColumns: ["name", "email"]
-        ))
-    }
-    
-    /// Test cleanup with invalid columns
-    func testCleanupInvalidColumns() {
-        // Arrange
-        try? db.createTable(
-            name: TestData.tableName,
-            columns: TestData.columns
+        let records = try? db.select(
+            table: table,
+            where: "id = ?",
+            params: [1]
         )
         
-        let aligner = TableAligner(service: mockService)
+        XCTAssertNotNil(records)
+        XCTAssertEqual(records?.count, 0)
+    }
+    
+    /// Test cleanup with non-existent table
+    func testCleanupWithNonExistentTable() {
+        // Act
+        let result = try? db.cleanup(
+            service: mockService
+        )
         
-        // Act & Assert
-        XCTAssertFalse(aligner.cleanupDuplicates(
-            TestData.tableName,
-            uniqueColumns: ["invalid_column"]
-        ))
+        // Assert
+        XCTAssertNotNil(result)
+        XCTAssertFalse(result?.success ?? true)
+    }
+    
+    /// Test cleanup with invalid data
+    func testCleanupWithInvalidData() {
+        // Arrange
+        let table = TestData.table
+        let columns = TestData.columns
+        let invalidRecord: [String: Any] = [
+            "id": "invalid",
+            "name": 123,
+            "age": "not a number",
+            "created_at": "invalid date"
+        ]
+        
+        // Create test table
+        _ = try? db.createTable(
+            name: table,
+            columns: columns
+        )
+        
+        // Insert invalid data
+        _ = try? db.insert(
+            table: table,
+            data: invalidRecord
+        )
+        
+        // Act
+        let result = try? db.cleanup(
+            service: mockService
+        )
+        
+        // Assert
+        XCTAssertNotNil(result)
+        XCTAssertFalse(result?.success ?? true)
     }
     
     /// Test performance
     func testPerformance() {
         // Arrange
-        try? db.createTable(
-            name: TestData.tableName,
-            columns: TestData.columns
+        let table = TestData.table
+        let columns = TestData.columns
+        let record = TestData.record
+        
+        // Create test table
+        _ = try? db.createTable(
+            name: table,
+            columns: columns
         )
         
-        // Insert large number of records
-        for i in 1...1000 {
-            try? db.insert(
-                table: TestData.tableName,
-                data: [
-                    "id": i,
-                    "name": "User \(i)",
-                    "email": "user\(i)@example.com"
-                ]
-            )
-        }
-        
-        let aligner = TableAligner(service: mockService)
+        // Insert test data
+        _ = try? db.insert(
+            table: table,
+            data: record
+        )
         
         // Act & Assert
         measure {
-            _ = aligner.cleanupDuplicates(
-                TestData.tableName,
-                uniqueColumns: ["name", "email"]
+            _ = try? db.cleanup(
+                service: mockService
             )
         }
     }

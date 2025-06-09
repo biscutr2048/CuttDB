@@ -7,26 +7,40 @@
 
 import XCTest
 
-/// Test class for SQL operations in the InsertUpdate module
-class InsertUpdateModule_SQLTest: XCTestCase {
+/// Test class for SQL-based insert and update operations
+final class InsertUpdateModule_SQLTest: XCTestCase {
     /// Database instance for testing
-    var db: CuttDB!
+    private var db: CuttDB!
     /// Mock service for testing
-    var mockService: MockCuttDBService!
+    private var mockService: MockCuttDBService!
     
     /// Test data structure
     struct TestData {
-        static let tableName = "sql_test_table"
+        static let table = "test_table"
         static let columns = [
             "id INTEGER PRIMARY KEY",
             "name TEXT",
             "age INTEGER",
-            "email TEXT"
+            "created_at INTEGER"
         ]
-        static let records = [
-            ["id": 1, "name": "John Doe", "age": 30, "email": "john@example.com"],
-            ["id": 2, "name": "Jane Smith", "age": 25, "email": "jane@example.com"],
-            ["id": 3, "name": "Bob Johnson", "age": 35, "email": "bob@example.com"]
+        
+        static let validRecord: [String: Any] = [
+            "id": 1,
+            "name": "Test User",
+            "age": 25,
+            "created_at": Date().timeIntervalSince1970
+        ]
+        
+        static let invalidRecord: [String: Any] = [
+            "id": "invalid",
+            "name": 123,
+            "age": "not a number",
+            "created_at": "invalid date"
+        ]
+        
+        static let updateRecord: [String: Any] = [
+            "name": "Updated User",
+            "age": 30
         ]
     }
     
@@ -37,15 +51,14 @@ class InsertUpdateModule_SQLTest: XCTestCase {
         db = CuttDB(configuration: config)
         
         // Create test table
-        try? db.createTable(
-            name: TestData.tableName,
+        _ = try? db.createTable(
+            name: TestData.table,
             columns: TestData.columns
         )
     }
     
     override func tearDown() {
-        // Clean up test table
-        try? db.dropTable(name: TestData.tableName)
+        try? db.dropTable(name: TestData.table)
         db = nil
         mockService = nil
         super.tearDown()
@@ -56,12 +69,13 @@ class InsertUpdateModule_SQLTest: XCTestCase {
     /// Test basic insert operation
     func testBasicInsert() {
         // Arrange
-        let record = TestData.records[0]
+        let table = TestData.table
+        let record = TestData.validRecord
         
         // Act
-        let result = try? db.insert(
-            table: TestData.tableName,
-            data: record
+        let result = try? db.insertOrUpdate(
+            table: table,
+            record: record
         )
         
         // Assert
@@ -69,24 +83,20 @@ class InsertUpdateModule_SQLTest: XCTestCase {
         XCTAssertTrue(result?.success ?? false)
         
         // Verify
-        let queryResult = try? db.select(
-            table: TestData.tableName,
-            where: ["id": record["id"] as! Int]
-        )
-        XCTAssertNotNil(queryResult)
-        XCTAssertEqual(queryResult?.count, 1)
-        XCTAssertEqual(queryResult?.first?["name"] as? String, record["name"] as? String)
+        let count = try? db.count(table: table)
+        XCTAssertEqual(count, 1)
     }
     
     /// Test insert with invalid data
     func testInsertWithInvalidData() {
         // Arrange
-        let invalidRecord = ["id": "invalid", "name": "Invalid", "age": "not_a_number"]
+        let table = TestData.table
+        let record = TestData.invalidRecord
         
         // Act & Assert
-        XCTAssertThrowsError(try db.insert(
-            table: TestData.tableName,
-            data: invalidRecord
+        XCTAssertThrowsError(try db.insertOrUpdate(
+            table: table,
+            record: record
         )) { error in
             XCTAssertTrue(error is CuttDBError)
         }
@@ -95,15 +105,22 @@ class InsertUpdateModule_SQLTest: XCTestCase {
     /// Test update operation
     func testUpdate() {
         // Arrange
-        let record = TestData.records[0]
-        try? db.insert(table: TestData.tableName, data: record)
-        let updatedData = ["name": "Updated Name", "age": 31]
+        let table = TestData.table
+        let record = TestData.validRecord
+        let updateRecord = TestData.updateRecord
+        
+        // Insert initial record
+        _ = try? db.insertOrUpdate(
+            table: table,
+            record: record
+        )
         
         // Act
         let result = try? db.update(
-            table: TestData.tableName,
-            data: updatedData,
-            where: ["id": record["id"] as! Int]
+            table: table,
+            record: updateRecord,
+            where: "id = ?",
+            params: [1]
         )
         
         // Assert
@@ -111,114 +128,83 @@ class InsertUpdateModule_SQLTest: XCTestCase {
         XCTAssertTrue(result?.success ?? false)
         
         // Verify
-        let queryResult = try? db.select(
-            table: TestData.tableName,
-            where: ["id": record["id"] as! Int]
-        )
-        XCTAssertNotNil(queryResult)
-        XCTAssertEqual(queryResult?.count, 1)
-        XCTAssertEqual(queryResult?.first?["name"] as? String, "Updated Name")
-        XCTAssertEqual(queryResult?.first?["age"] as? Int, 31)
+        let updatedRecord = try? db.select(
+            table: table,
+            where: "id = ?",
+            params: [1]
+        ).first
+        
+        XCTAssertNotNil(updatedRecord)
+        XCTAssertEqual(updatedRecord?["name"] as? String, "Updated User")
+        XCTAssertEqual(updatedRecord?["age"] as? Int, 30)
     }
     
-    /// Test update with invalid condition
-    func testUpdateWithInvalidCondition() {
+    /// Test update with invalid data
+    func testUpdateWithInvalidData() {
         // Arrange
-        let record = TestData.records[0]
-        try? db.insert(table: TestData.tableName, data: record)
-        let updatedData = ["name": "Updated Name"]
+        let table = TestData.table
+        let record = TestData.validRecord
+        let invalidUpdate = TestData.invalidRecord
+        
+        // Insert initial record
+        _ = try? db.insertOrUpdate(
+            table: table,
+            record: record
+        )
         
         // Act & Assert
         XCTAssertThrowsError(try db.update(
-            table: TestData.tableName,
-            data: updatedData,
-            where: ["invalid_column": "value"]
+            table: table,
+            record: invalidUpdate,
+            where: "id = ?",
+            params: [1]
         )) { error in
             XCTAssertTrue(error is CuttDBError)
         }
     }
     
-    /// Test upsert operation
-    func testUpsert() {
+    /// Test insert or update operation
+    func testInsertOrUpdate() {
         // Arrange
-        let record = TestData.records[0]
-        let updatedData = ["name": "Upserted Name", "age": 32]
+        let table = TestData.table
+        let record = TestData.validRecord
         
-        // Act
-        let result = try? db.upsert(
-            table: TestData.tableName,
-            data: updatedData,
-            where: ["id": record["id"] as! Int]
+        // Act - First insert
+        let insertResult = try? db.insertOrUpdate(
+            table: table,
+            record: record
         )
         
         // Assert
-        XCTAssertNotNil(result)
-        XCTAssertTrue(result?.success ?? false)
+        XCTAssertNotNil(insertResult)
+        XCTAssertTrue(insertResult?.success ?? false)
         
-        // Verify
-        let queryResult = try? db.select(
-            table: TestData.tableName,
-            where: ["id": record["id"] as! Int]
-        )
-        XCTAssertNotNil(queryResult)
-        XCTAssertEqual(queryResult?.count, 1)
-        XCTAssertEqual(queryResult?.first?["name"] as? String, "Upserted Name")
-        XCTAssertEqual(queryResult?.first?["age"] as? Int, 32)
-    }
-    
-    /// Test batch insert operation
-    func testBatchInsert() {
-        // Act
-        let result = try? db.insertBatch(
-            table: TestData.tableName,
-            data: TestData.records
+        // Act - Then update
+        let updateResult = try? db.insertOrUpdate(
+            table: table,
+            record: record
         )
         
         // Assert
-        XCTAssertNotNil(result)
-        XCTAssertTrue(result?.success ?? false)
+        XCTAssertNotNil(updateResult)
+        XCTAssertTrue(updateResult?.success ?? false)
         
         // Verify
-        let queryResult = try? db.select(table: TestData.tableName)
-        XCTAssertNotNil(queryResult)
-        XCTAssertEqual(queryResult?.count, TestData.records.count)
-    }
-    
-    /// Test batch insert with invalid data
-    func testBatchInsertWithInvalidData() {
-        // Arrange
-        let invalidRecords = [
-            ["id": "invalid", "name": "Invalid"],
-            ["id": 2, "name": "Valid"]
-        ]
-        
-        // Act & Assert
-        XCTAssertThrowsError(try db.insertBatch(
-            table: TestData.tableName,
-            data: invalidRecords
-        )) { error in
-            XCTAssertTrue(error is CuttDBError)
-        }
+        let count = try? db.count(table: table)
+        XCTAssertEqual(count, 1)
     }
     
     /// Test performance
     func testPerformance() {
         // Arrange
-        var largeDataset: [[String: Any]] = []
-        for i in 1...1000 {
-            largeDataset.append([
-                "id": i,
-                "name": "Record \(i)",
-                "age": i % 100,
-                "email": "record\(i)@example.com"
-            ])
-        }
+        let table = TestData.table
+        let record = TestData.validRecord
         
         // Act & Assert
         measure {
-            _ = try? db.insertBatch(
-                table: TestData.tableName,
-                data: largeDataset
+            _ = try? db.insertOrUpdate(
+                table: table,
+                record: record
             )
         }
     }

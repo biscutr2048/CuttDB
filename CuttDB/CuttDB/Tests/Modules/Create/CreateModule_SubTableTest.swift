@@ -1,121 +1,296 @@
-import Foundation
+//
+//  CreateModule_SubTableTest.swift
+//  CuttDB
+//
+//  Created by BISCUTR@QQ.COM on 2025/6/9.
+//
 
-/// 创建模块 - 子表处理测试
-struct CreateModule_SubTableTest {
-    /// 测试数据
-    struct Data {
-        static let orderWithItems: [String: Any] = [
-            "id": 1,
-            "order_number": "ORD-001",
-            "customer": [
-                "id": 101,
-                "name": "Customer 1",
-                "email": "customer1@example.com"
-            ],
-            "items": [
-                [
-                    "id": 1,
-                    "product_id": "PROD-001",
-                    "quantity": 2,
-                    "price": 99.99
-                ],
-                [
-                    "id": 2,
-                    "product_id": "PROD-002",
-                    "quantity": 1,
-                    "price": 149.99
-                ]
-            ],
-            "shipping": [
-                "address": "123 Main St",
-                "city": "Beijing",
-                "country": "China"
-            ]
+import XCTest
+
+/// Test class for sub-table functionality
+final class CreateModule_SubTableTest: XCTestCase {
+    /// Database instance for testing
+    private var db: CuttDB!
+    /// Mock service for testing
+    private var mockService: MockCuttDBService!
+    
+    /// Test data structure
+    struct TestData {
+        static let parentTable = "parent_table"
+        static let childTable = "child_table"
+        static let grandChildTable = "grandchild_table"
+        
+        static let parentColumns = [
+            "id INTEGER PRIMARY KEY",
+            "name TEXT",
+            "created_at INTEGER"
         ]
         
-        static let userWithPosts: [String: Any] = [
+        static let childColumns = [
+            "id INTEGER PRIMARY KEY",
+            "parent_id INTEGER",
+            "name TEXT",
+            "created_at INTEGER",
+            "FOREIGN KEY(parent_id) REFERENCES parent_table(id)"
+        ]
+        
+        static let grandChildColumns = [
+            "id INTEGER PRIMARY KEY",
+            "child_id INTEGER",
+            "name TEXT",
+            "created_at INTEGER",
+            "FOREIGN KEY(child_id) REFERENCES child_table(id)"
+        ]
+        
+        static let parentRecord: [String: Any] = [
             "id": 1,
-            "username": "user1",
-            "profile": [
-                "name": "User One",
-                "bio": "Test user"
-            ],
-            "posts": [
-                [
-                    "id": 1,
-                    "title": "Post 1",
-                    "content": "Content 1",
-                    "tags": ["swift", "ios"]
-                ],
-                [
-                    "id": 2,
-                    "title": "Post 2",
-                    "content": "Content 2",
-                    "tags": ["database", "sql"]
-                ]
-            ]
+            "name": "Parent",
+            "created_at": Date().timeIntervalSince1970
+        ]
+        
+        static let childRecord: [String: Any] = [
+            "id": 1,
+            "parent_id": 1,
+            "name": "Child",
+            "created_at": Date().timeIntervalSince1970
+        ]
+        
+        static let grandChildRecord: [String: Any] = [
+            "id": 1,
+            "child_id": 1,
+            "name": "GrandChild",
+            "created_at": Date().timeIntervalSince1970
         ]
     }
     
-    /// 测试逻辑
-    struct Logic {
-        /// 测试订单子表创建
-        static func testOrderSubTableCreation() {
-            let mockDBService = MockCuttDBService()
-            let result = CuttDB.handleListProperties(
-                api: "/order",
-                method: "POST",
-                json: Data.orderWithItems,
-                dbService: mockDBService
-            )
-            print("Order Sub Table Creation Result:", result)
-            assert(result, "Should create order sub tables successfully")
+    override func setUp() {
+        super.setUp()
+        let config = CuttDBServiceConfiguration(dbPath: ":memory:")
+        mockService = MockCuttDBService()
+        db = CuttDB(configuration: config)
+    }
+    
+    override func tearDown() {
+        try? db.dropTable(name: TestData.grandChildTable)
+        try? db.dropTable(name: TestData.childTable)
+        try? db.dropTable(name: TestData.parentTable)
+        db = nil
+        mockService = nil
+        super.tearDown()
+    }
+    
+    // MARK: - Test Methods
+    
+    /// Test basic sub-table creation
+    func testBasicSubTableCreation() {
+        // Arrange
+        let parentTable = TestData.parentTable
+        let childTable = TestData.childTable
+        let parentColumns = TestData.parentColumns
+        let childColumns = TestData.childColumns
+        
+        // Act
+        let parentResult = try? db.createTable(
+            name: parentTable,
+            columns: parentColumns
+        )
+        let childResult = try? db.createTable(
+            name: childTable,
+            columns: childColumns
+        )
+        
+        // Assert
+        XCTAssertNotNil(parentResult)
+        XCTAssertTrue(parentResult?.success ?? false)
+        XCTAssertNotNil(childResult)
+        XCTAssertTrue(childResult?.success ?? false)
+        
+        // Verify
+        let parentExists = try? db.tableExists(name: parentTable)
+        XCTAssertTrue(parentExists ?? false)
+        let childExists = try? db.tableExists(name: childTable)
+        XCTAssertTrue(childExists ?? false)
+    }
+    
+    /// Test nested sub-table creation
+    func testNestedSubTableCreation() {
+        // Arrange
+        let parentTable = TestData.parentTable
+        let childTable = TestData.childTable
+        let grandChildTable = TestData.grandChildTable
+        let parentColumns = TestData.parentColumns
+        let childColumns = TestData.childColumns
+        let grandChildColumns = TestData.grandChildColumns
+        
+        // Act
+        let parentResult = try? db.createTable(
+            name: parentTable,
+            columns: parentColumns
+        )
+        let childResult = try? db.createTable(
+            name: childTable,
+            columns: childColumns
+        )
+        let grandChildResult = try? db.createTable(
+            name: grandChildTable,
+            columns: grandChildColumns
+        )
+        
+        // Assert
+        XCTAssertNotNil(parentResult)
+        XCTAssertTrue(parentResult?.success ?? false)
+        XCTAssertNotNil(childResult)
+        XCTAssertTrue(childResult?.success ?? false)
+        XCTAssertNotNil(grandChildResult)
+        XCTAssertTrue(grandChildResult?.success ?? false)
+        
+        // Verify
+        let parentExists = try? db.tableExists(name: parentTable)
+        XCTAssertTrue(parentExists ?? false)
+        let childExists = try? db.tableExists(name: childTable)
+        XCTAssertTrue(childExists ?? false)
+        let grandChildExists = try? db.tableExists(name: grandChildTable)
+        XCTAssertTrue(grandChildExists ?? false)
+    }
+    
+    /// Test foreign key constraints
+    func testForeignKeyConstraints() {
+        // Arrange
+        let parentTable = TestData.parentTable
+        let childTable = TestData.childTable
+        let parentColumns = TestData.parentColumns
+        let childColumns = TestData.childColumns
+        
+        // Create tables
+        _ = try? db.createTable(
+            name: parentTable,
+            columns: parentColumns
+        )
+        _ = try? db.createTable(
+            name: childTable,
+            columns: childColumns
+        )
+        
+        // Act & Assert - Try to insert child without parent
+        XCTAssertThrowsError(try db.insertOrUpdate(
+            table: childTable,
+            record: TestData.childRecord
+        )) { error in
+            XCTAssertTrue(error is CuttDBError)
         }
         
-        /// 测试用户帖子子表创建
-        static func testUserPostsSubTableCreation() {
-            let mockDBService = MockCuttDBService()
-            let result = CuttDB.handleListProperties(
-                api: "/user",
-                method: "POST",
-                json: Data.userWithPosts,
-                dbService: mockDBService
-            )
-            print("User Posts Sub Table Creation Result:", result)
-            assert(result, "Should create user posts sub tables successfully")
-        }
+        // Insert parent first
+        _ = try? db.insertOrUpdate(
+            table: parentTable,
+            record: TestData.parentRecord
+        )
         
-        /// 测试嵌套子表关系
-        static func testNestedSubTableRelations() {
-            let mockDBService = MockCuttDBService()
-            let result = CuttDB.handleNestedSubTables(
-                parentTable: "orders",
-                parentId: 1,
-                json: Data.orderWithItems,
-                dbService: mockDBService
-            )
-            print("Nested Sub Table Relations Result:", result)
-            assert(result, "Should handle nested sub table relations successfully")
-        }
+        // Now try to insert child
+        let result = try? db.insertOrUpdate(
+            table: childTable,
+            record: TestData.childRecord
+        )
         
-        /// 测试子表外键约束
-        static func testSubTableForeignKeyConstraints() {
-            let mockDBService = MockCuttDBService()
-            let result = CuttDB.createSubTableWithConstraints(
-                parentTable: "orders",
-                subTable: "order_items",
-                columns: [
-                    ("id", "INTEGER"),
-                    ("order_id", "INTEGER"),
-                    ("product_id", "TEXT"),
-                    ("quantity", "INTEGER"),
-                    ("price", "REAL")
-                ],
-                foreignKey: ("order_id", "orders", "id"),
-                dbService: mockDBService
+        // Assert
+        XCTAssertNotNil(result)
+        XCTAssertTrue(result?.success ?? false)
+    }
+    
+    /// Test cascade delete
+    func testCascadeDelete() {
+        // Arrange
+        let parentTable = TestData.parentTable
+        let childTable = TestData.childTable
+        let parentColumns = TestData.parentColumns
+        let childColumns = TestData.childColumns
+        
+        // Create tables
+        _ = try? db.createTable(
+            name: parentTable,
+            columns: parentColumns
+        )
+        _ = try? db.createTable(
+            name: childTable,
+            columns: childColumns
+        )
+        
+        // Insert records
+        _ = try? db.insertOrUpdate(
+            table: parentTable,
+            record: TestData.parentRecord
+        )
+        _ = try? db.insertOrUpdate(
+            table: childTable,
+            record: TestData.childRecord
+        )
+        
+        // Act
+        let deleteResult = try? db.delete(
+            table: parentTable,
+            where: "id = ?",
+            params: [1]
+        )
+        
+        // Assert
+        XCTAssertNotNil(deleteResult)
+        XCTAssertTrue(deleteResult?.success ?? false)
+        
+        // Verify child is also deleted
+        let childCount = try? db.count(
+            table: childTable,
+            where: "parent_id = ?",
+            params: [1]
+        )
+        XCTAssertEqual(childCount, 0)
+    }
+    
+    /// Test invalid foreign key
+    func testInvalidForeignKey() {
+        // Arrange
+        let parentTable = TestData.parentTable
+        let childTable = TestData.childTable
+        let parentColumns = TestData.parentColumns
+        let invalidChildColumns = [
+            "id INTEGER PRIMARY KEY",
+            "parent_id INTEGER",
+            "name TEXT",
+            "created_at INTEGER",
+            "FOREIGN KEY(parent_id) REFERENCES non_existent_table(id)"
+        ]
+        
+        // Create parent table
+        _ = try? db.createTable(
+            name: parentTable,
+            columns: parentColumns
+        )
+        
+        // Act & Assert
+        XCTAssertThrowsError(try db.createTable(
+            name: childTable,
+            columns: invalidChildColumns
+        )) { error in
+            XCTAssertTrue(error is CuttDBError)
+        }
+    }
+    
+    /// Test performance
+    func testPerformance() {
+        // Arrange
+        let parentTable = TestData.parentTable
+        let childTable = TestData.childTable
+        let parentColumns = TestData.parentColumns
+        let childColumns = TestData.childColumns
+        
+        // Act & Assert
+        measure {
+            _ = try? db.createTable(
+                name: parentTable,
+                columns: parentColumns
             )
-            print("Sub Table Foreign Key Constraints Result:", result)
-            assert(result, "Should create sub table with foreign key constraints successfully")
+            _ = try? db.createTable(
+                name: childTable,
+                columns: childColumns
+            )
         }
     }
 } 

@@ -1,120 +1,172 @@
-import Foundation
+//
+//  CreateModule_TableDefinitionTest.swift
+//  CuttDB
+//
+//  Created by BISCUTR@QQ.COM on 2025/6/9.
+//
 
-/// 创建模块 - 表格定义测试
-struct CreateModule_TableDefinitionTest {
-    /// 测试数据
-    struct Data {
-        static let simpleJSON: [String: Any] = [
-            "id": 1,
-            "name": "Test"
+import XCTest
+
+/// Test class for table definition functionality
+class CreateModule_TableDefinitionTest: XCTestCase {
+    /// Database instance for testing
+    private var db: CuttDB!
+    /// Mock service for testing
+    private var mockService: MockCuttDBService!
+    
+    /// Test data structure
+    struct TestData {
+        static let tableName = "test_table"
+        static let columns = [
+            "id INTEGER PRIMARY KEY",
+            "name TEXT",
+            "age INTEGER",
+            "email TEXT UNIQUE",
+            "created_at INTEGER"
         ]
-        
-        static let complexJSON: [String: Any] = [
-            "id": 123,
-            "name": "Alice",
-            "profile": [
-                "age": 30,
-                "city": "Beijing",
-                "contact": [
-                    "email": "alice@example.com",
-                    "phone": "123456"
-                ]
-            ],
-            "tags": ["swift", "macos"],
-            "meta": NSNull(),
-            "history": [
-                [
-                    "date": "2024-06-01",
-                    "action": "login"
-                ],
-                [
-                    "date": "2024-06-02",
-                    "action": "logout"
-                ]
-            ]
-        ]
-        
-        static let jsonWithSpecialTypes: [String: Any] = [
-            "id": 1,
-            "name": "Test",
-            "is_active": true,
-            "score": 95.5,
-            "created_at": "2024-06-09T10:00:00Z",
-            "metadata": [
-                "version": 1.0,
-                "flags": [1, 2, 3]
-            ]
+        static let invalidColumns = [
+            "id INVALID_TYPE",
+            "name",
+            "age INTEGER INVALID_CONSTRAINT"
         ]
     }
     
-    /// 测试逻辑
-    struct Logic {
-        private let cuttDB: CuttDB
+    override func setUp() {
+        super.setUp()
+        let config = CuttDBServiceConfiguration(dbPath: ":memory:")
+        mockService = MockCuttDBService()
+        db = CuttDB(configuration: config)
+    }
+    
+    override func tearDown() {
+        try? db.dropTable(name: TestData.tableName)
+        db = nil
+        mockService = nil
+        super.tearDown()
+    }
+    
+    // MARK: - Test Methods
+    
+    /// Test basic table creation
+    func testBasicTableCreation() {
+        // Arrange
+        let tableName = TestData.tableName
+        let columns = TestData.columns
         
-        init() {
-            self.cuttDB = CuttDB(dbName: "test_table_definition.sqlite")
+        // Act
+        let result = try? db.createTable(
+            name: tableName,
+            columns: columns
+        )
+        
+        // Assert
+        XCTAssertNotNil(result)
+        XCTAssertTrue(result?.success ?? false)
+        
+        // Verify
+        let tableExists = try? db.tableExists(name: tableName)
+        XCTAssertTrue(tableExists ?? false)
+    }
+    
+    /// Test table creation with invalid columns
+    func testInvalidColumnDefinition() {
+        // Arrange
+        let tableName = TestData.tableName
+        let invalidColumns = TestData.invalidColumns
+        
+        // Act & Assert
+        XCTAssertThrowsError(try db.createTable(
+            name: tableName,
+            columns: invalidColumns
+        )) { error in
+            XCTAssertTrue(error is CuttDBError)
         }
+    }
+    
+    /// Test duplicate table creation
+    func testDuplicateTableCreation() {
+        // Arrange
+        let tableName = TestData.tableName
+        let columns = TestData.columns
         
-        /// 测试简单JSON结构创建表格
-        func testSimpleJSONTableDefinition() {
-            let result = cuttDB.createTableFromJSON(tableName: "simple_table", json: Data.simpleJSON)
-            print("Simple JSON Table Creation Result:", result)
-            assert(result, "Should create table successfully")
-            
-            let validation = cuttDB.validateTableStructure(
-                tableName: "simple_table",
-                expectedColumns: ["id": "INTEGER", "name": "TEXT"]
+        // Create table first time
+        _ = try? db.createTable(
+            name: tableName,
+            columns: columns
+        )
+        
+        // Act & Assert
+        XCTAssertThrowsError(try db.createTable(
+            name: tableName,
+            columns: columns
+        )) { error in
+            XCTAssertTrue(error is CuttDBError)
+        }
+    }
+    
+    /// Test table creation with constraints
+    func testTableWithConstraints() {
+        // Arrange
+        let tableName = TestData.tableName
+        let columns = TestData.columns
+        
+        // Act
+        let result = try? db.createTable(
+            name: tableName,
+            columns: columns
+        )
+        
+        // Assert
+        XCTAssertNotNil(result)
+        XCTAssertTrue(result?.success ?? false)
+        
+        // Verify constraints
+        let tableInfo = try? db.getTableInfo(name: tableName)
+        XCTAssertNotNil(tableInfo)
+        XCTAssertTrue(tableInfo?.columns.contains { $0.name == "id" && $0.isPrimaryKey } ?? false)
+        XCTAssertTrue(tableInfo?.columns.contains { $0.name == "email" && $0.isUnique } ?? false)
+    }
+    
+    /// Test table creation with indexes
+    func testTableWithIndexes() {
+        // Arrange
+        let tableName = TestData.tableName
+        let columns = TestData.columns
+        let indexes = [
+            "idx_name": ["name"],
+            "idx_email": ["email"]
+        ]
+        
+        // Act
+        let result = try? db.createTable(
+            name: tableName,
+            columns: columns,
+            indexes: indexes
+        )
+        
+        // Assert
+        XCTAssertNotNil(result)
+        XCTAssertTrue(result?.success ?? false)
+        
+        // Verify indexes
+        let tableInfo = try? db.getTableInfo(name: tableName)
+        XCTAssertNotNil(tableInfo)
+        XCTAssertTrue(tableInfo?.indexes.contains { $0.name == "idx_name" } ?? false)
+        XCTAssertTrue(tableInfo?.indexes.contains { $0.name == "idx_email" } ?? false)
+    }
+    
+    /// Test performance
+    func testPerformance() {
+        // Arrange
+        let tableName = TestData.tableName
+        let columns = TestData.columns
+        
+        // Act & Assert
+        measure {
+            _ = try? db.createTable(
+                name: tableName,
+                columns: columns
             )
-            assert(validation, "Should validate table structure")
-        }
-        
-        /// 测试复杂JSON结构创建表格
-        func testComplexJSONTableDefinition() {
-            let result = cuttDB.createTableFromJSON(tableName: "complex_table", json: Data.complexJSON)
-            print("Complex JSON Table Creation Result:", result)
-            assert(result, "Should create table successfully")
-            
-            let validation = cuttDB.validateTableStructure(
-                tableName: "complex_table",
-                expectedColumns: [
-                    "id": "INTEGER",
-                    "name": "TEXT",
-                    "profile": "TEXT",
-                    "tags": "TEXT",
-                    "meta": "TEXT",
-                    "history": "TEXT"
-                ]
-            )
-            assert(validation, "Should validate table structure")
-        }
-        
-        /// 测试特殊类型JSON结构创建表格
-        func testSpecialTypesTableDefinition() {
-            let result = cuttDB.createTableFromJSON(tableName: "special_types_table", json: Data.jsonWithSpecialTypes)
-            print("Special Types Table Creation Result:", result)
-            assert(result, "Should create table successfully")
-            
-            let validation = cuttDB.validateTableStructure(
-                tableName: "special_types_table",
-                expectedColumns: [
-                    "id": "INTEGER",
-                    "name": "TEXT",
-                    "is_active": "INTEGER",
-                    "score": "REAL",
-                    "created_at": "TEXT",
-                    "metadata": "TEXT"
-                ]
-            )
-            assert(validation, "Should validate table structure")
-        }
-        
-        /// 运行所有测试
-        func runTests() {
-            print("Running Table Definition Tests...")
-            testSimpleJSONTableDefinition()
-            testComplexJSONTableDefinition()
-            testSpecialTypesTableDefinition()
-            print("All Table Definition Tests Completed Successfully!")
         }
     }
 } 

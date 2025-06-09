@@ -7,34 +7,31 @@
 
 import XCTest
 
-/// Test class for paged query functionality in the Select module
-class SelectModule_PagedQueryTest: XCTestCase {
+/// Test class for paged query operations
+final class SelectModule_PagedQueryTest: XCTestCase {
     /// Database instance for testing
-    var db: CuttDB!
+    private var db: CuttDB!
     /// Mock service for testing
-    var mockService: MockCuttDBService!
+    private var mockService: MockCuttDBService!
     
     /// Test data structure
     struct TestData {
-        static let tableName = "paged_test_table"
+        static let table = "test_table"
         static let columns = [
             "id INTEGER PRIMARY KEY",
             "name TEXT",
             "age INTEGER",
-            "score REAL"
+            "created_at INTEGER"
         ]
-        static let records = [
-            ["id": 1, "name": "Alice", "age": 20, "score": 85.5],
-            ["id": 2, "name": "Bob", "age": 22, "score": 92.0],
-            ["id": 3, "name": "Charlie", "age": 21, "score": 88.5],
-            ["id": 4, "name": "David", "age": 23, "score": 90.0],
-            ["id": 5, "name": "Eve", "age": 19, "score": 87.5],
-            ["id": 6, "name": "Frank", "age": 24, "score": 91.0],
-            ["id": 7, "name": "Grace", "age": 20, "score": 89.0],
-            ["id": 8, "name": "Henry", "age": 22, "score": 86.5],
-            ["id": 9, "name": "Ivy", "age": 21, "score": 93.0],
-            ["id": 10, "name": "Jack", "age": 23, "score": 88.0]
-        ]
+        
+        static let records: [[String: Any]] = (1...100).map { i in
+            [
+                "id": i,
+                "name": "User \(i)",
+                "age": 20 + (i % 50),
+                "created_at": Date().timeIntervalSince1970 + Double(i)
+            ]
+        }
     }
     
     override func setUp() {
@@ -44,23 +41,22 @@ class SelectModule_PagedQueryTest: XCTestCase {
         db = CuttDB(configuration: config)
         
         // Create test table
-        try? db.createTable(
-            name: TestData.tableName,
+        _ = try? db.createTable(
+            name: TestData.table,
             columns: TestData.columns
         )
         
         // Insert test data
         for record in TestData.records {
-            try? db.insert(
-                table: TestData.tableName,
-                data: record
+            _ = try? db.insertOrUpdate(
+                table: TestData.table,
+                record: record
             )
         }
     }
     
     override func tearDown() {
-        // Clean up test table
-        try? db.dropTable(name: TestData.tableName)
+        try? db.dropTable(name: TestData.table)
         db = nil
         mockService = nil
         super.tearDown()
@@ -71,12 +67,13 @@ class SelectModule_PagedQueryTest: XCTestCase {
     /// Test basic paged query
     func testBasicPagedQuery() {
         // Arrange
-        let pageSize = 3
+        let table = TestData.table
+        let pageSize = 10
         let pageNumber = 1
         
         // Act
         let result = try? db.selectPaged(
-            table: TestData.tableName,
+            table: table,
             pageSize: pageSize,
             pageNumber: pageNumber
         )
@@ -85,115 +82,116 @@ class SelectModule_PagedQueryTest: XCTestCase {
         XCTAssertNotNil(result)
         XCTAssertEqual(result?.records.count, pageSize)
         XCTAssertEqual(result?.totalCount, TestData.records.count)
-        XCTAssertEqual(result?.totalPages, 4) // ceil(10/3)
+        XCTAssertEqual(result?.totalPages, (TestData.records.count + pageSize - 1) / pageSize)
+        XCTAssertEqual(result?.currentPage, pageNumber)
     }
     
-    /// Test sorted paged query
-    func testSortedPagedQuery() {
+    /// Test paged query with where clause
+    func testPagedQueryWithWhere() {
         // Arrange
-        let pageSize = 3
+        let table = TestData.table
+        let pageSize = 10
         let pageNumber = 1
-        let sortBy = "score"
-        let sortOrder = "DESC"
+        let whereClause = "age > ?"
+        let params = [40]
         
         // Act
         let result = try? db.selectPaged(
-            table: TestData.tableName,
+            table: table,
+            where: whereClause,
+            params: params,
             pageSize: pageSize,
-            pageNumber: pageNumber,
-            sortBy: sortBy,
-            sortOrder: sortOrder
+            pageNumber: pageNumber
+        )
+        
+        // Assert
+        XCTAssertNotNil(result)
+        XCTAssertLessThanOrEqual(result?.records.count ?? 0, pageSize)
+        XCTAssertGreaterThan(result?.totalCount ?? 0, 0)
+        XCTAssertEqual(result?.currentPage, pageNumber)
+        
+        // Verify all records match the condition
+        for record in result?.records ?? [] {
+            XCTAssertGreaterThan(record["age"] as? Int ?? 0, 40)
+        }
+    }
+    
+    /// Test paged query with order by
+    func testPagedQueryWithOrderBy() {
+        // Arrange
+        let table = TestData.table
+        let pageSize = 10
+        let pageNumber = 1
+        let orderBy = "age DESC"
+        
+        // Act
+        let result = try? db.selectPaged(
+            table: table,
+            orderBy: orderBy,
+            pageSize: pageSize,
+            pageNumber: pageNumber
         )
         
         // Assert
         XCTAssertNotNil(result)
         XCTAssertEqual(result?.records.count, pageSize)
         
-        // Verify sorting
-        let scores = result?.records.compactMap { $0["score"] as? Double } ?? []
-        XCTAssertEqual(scores, scores.sorted(by: >))
-    }
-    
-    /// Test filtered paged query
-    func testFilteredPagedQuery() {
-        // Arrange
-        let pageSize = 3
-        let pageNumber = 1
-        let filter = ["age": 21]
-        
-        // Act
-        let result = try? db.selectPaged(
-            table: TestData.tableName,
-            pageSize: pageSize,
-            pageNumber: pageNumber,
-            where: filter
-        )
-        
-        // Assert
-        XCTAssertNotNil(result)
-        XCTAssertEqual(result?.records.count, 1) // Only one record with age 21
-        XCTAssertEqual(result?.totalCount, 1)
-        XCTAssertEqual(result?.totalPages, 1)
+        // Verify records are ordered
+        let records = result?.records ?? []
+        for i in 0..<(records.count - 1) {
+            let currentAge = records[i]["age"] as? Int ?? 0
+            let nextAge = records[i + 1]["age"] as? Int ?? 0
+            XCTAssertGreaterThanOrEqual(currentAge, nextAge)
+        }
     }
     
     /// Test paged query with invalid page number
-    func testInvalidPageNumber() {
+    func testPagedQueryWithInvalidPage() {
         // Arrange
-        let pageSize = 3
-        let invalidPageNumber = 5 // Beyond total pages
+        let table = TestData.table
+        let pageSize = 10
+        let invalidPage = 999
         
-        // Act
-        let result = try? db.selectPaged(
-            table: TestData.tableName,
+        // Act & Assert
+        XCTAssertThrowsError(try db.selectPaged(
+            table: table,
             pageSize: pageSize,
-            pageNumber: invalidPageNumber
-        )
-        
-        // Assert
-        XCTAssertNotNil(result)
-        XCTAssertEqual(result?.records.count, 0)
-        XCTAssertEqual(result?.totalCount, TestData.records.count)
-        XCTAssertEqual(result?.totalPages, 4)
+            pageNumber: invalidPage
+        )) { error in
+            XCTAssertTrue(error is CuttDBError)
+        }
     }
     
-    /// Test paged query with invalid page size
-    func testInvalidPageSize() {
+    /// Test paged query with zero page size
+    func testPagedQueryWithZeroPageSize() {
         // Arrange
-        let invalidPageSize = 0
+        let table = TestData.table
+        let pageSize = 0
         let pageNumber = 1
         
         // Act & Assert
         XCTAssertThrowsError(try db.selectPaged(
-            table: TestData.tableName,
-            pageSize: invalidPageSize,
+            table: table,
+            pageSize: pageSize,
             pageNumber: pageNumber
         )) { error in
             XCTAssertTrue(error is CuttDBError)
         }
     }
     
-    /// Test total count query
-    func testTotalCount() {
-        // Act
-        let result = try? db.selectCount(
-            table: TestData.tableName
-        )
-        
-        // Assert
-        XCTAssertNotNil(result)
-        XCTAssertEqual(result, TestData.records.count)
-    }
-    
     /// Test performance
     func testPerformance() {
+        // Arrange
+        let table = TestData.table
+        let pageSize = 10
+        let pageNumber = 1
+        
         // Act & Assert
         measure {
             _ = try? db.selectPaged(
-                table: TestData.tableName,
-                pageSize: 3,
-                pageNumber: 1,
-                sortBy: "score",
-                sortOrder: "DESC"
+                table: table,
+                pageSize: pageSize,
+                pageNumber: pageNumber
             )
         }
     }

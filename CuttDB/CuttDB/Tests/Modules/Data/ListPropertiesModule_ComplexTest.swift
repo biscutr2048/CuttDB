@@ -1,100 +1,222 @@
-import Foundation
+//
+//  ListPropertiesModule_ComplexTest.swift
+//  CuttDB
+//
+//  Created by BISCUTR@QQ.COM on 2025/6/9.
+//
 
-/// 复杂列表属性测试
-class ListPropertiesModule_ComplexTest: CuttDBTestCase {
-    override func runTests() {
-        print("\n=== 复杂列表属性测试 ===")
-        
-        // 测试数据
-        let testData = [
-            "complexList": [
-                ["id": 1, "name": "Item 1", "value": 100],
-                ["id": 2, "name": "Item 2", "value": 200]
-            ],
-            "nestedList": [
-                [
-                    "id": 1,
-                    "name": "Group 1",
-                    "items": [
-                        ["id": 1, "name": "Item 1.1"],
-                        ["id": 2, "name": "Item 1.2"]
-                    ]
-                ],
-                [
-                    "id": 2,
-                    "name": "Group 2",
-                    "items": [
-                        ["id": 3, "name": "Item 2.1"],
-                        ["id": 4, "name": "Item 2.2"]
-                    ]
-                ]
-            ]
+import XCTest
+
+/// Test class for complex list properties operations
+final class ListPropertiesModule_ComplexTest: CuttDBTestCase {
+    /// Test data structure
+    struct TestData {
+        static let table = "test_table"
+        static let columns = [
+            "id INTEGER PRIMARY KEY",
+            "name TEXT",
+            "age INTEGER",
+            "scores TEXT",
+            "tags TEXT",
+            "metadata TEXT"
         ]
         
-        // 创建Mock服务
-        let mockService = MockCuttDBService()
-        
-        // 测试复杂列表处理
-        print("\n测试复杂列表处理")
-        let complexListResult = CuttDB.handleComplexListProperties(
-            tableName: "test_table",
-            data: testData["complexList"] as! [[String: Any]],
-            dbService: mockService
-        )
-        assert(complexListResult, "复杂列表处理失败")
-        
-        // 验证复杂列表数据
-        let complexListData = mockService.select(tableName: "test_table_complexList")
-        assert(complexListData.count == 2, "复杂列表数据验证失败")
-        
-        // 测试嵌套列表处理
-        print("\n测试嵌套列表处理")
-        let nestedListResult = CuttDB.handleNestedListProperties(
-            tableName: "test_table",
-            data: testData["nestedList"] as! [[String: Any]],
-            dbService: mockService
-        )
-        assert(nestedListResult, "嵌套列表处理失败")
-        
-        // 验证嵌套列表数据
-        let nestedListData = mockService.select(tableName: "test_table_nestedList")
-        assert(nestedListData.count == 2, "嵌套列表数据验证失败")
-        
-        // 测试列表表创建
-        print("\n测试列表表创建")
-        let listConfig = [
-            "complexList": ["id": "INTEGER", "name": "TEXT", "value": "INTEGER"],
-            "nestedList": ["id": "INTEGER", "name": "TEXT"]
+        static let simpleRecord: [String: Any] = [
+            "id": 1,
+            "name": "Test User",
+            "age": 25,
+            "scores": "[85, 90, 95]",
+            "tags": "[\"tag1\", \"tag2\"]",
+            "metadata": "{\"key1\": \"value1\", \"key2\": 123}"
         ]
-        let createResult = CuttDB.createListTables(
-            tableName: "test_table",
-            listProperties: listConfig,
-            dbService: mockService
-        )
-        assert(createResult, "列表表创建失败")
         
-        // 测试列表数据验证
-        print("\n测试列表数据验证")
-        let validateResult = CuttDB.validateListData(
-            tableName: "test_table",
-            data: testData,
-            dbService: mockService
-        )
-        assert(validateResult, "列表数据验证失败")
-        
-        // 测试列表关系处理
-        print("\n测试列表关系处理")
-        let relationships = [
-            "complexList": "parent_id",
-            "nestedList": "group_id"
+        static let complexRecord: [String: Any] = [
+            "id": 2,
+            "name": "Complex User",
+            "age": 30,
+            "scores": "[100, 95, 90, 85]",
+            "tags": "[\"tag1\", \"tag2\", \"tag3\", \"tag4\"]",
+            "metadata": """
+            {
+                "key1": "value1",
+                "key2": 123,
+                "key3": [1, 2, 3],
+                "key4": {"nested": "value"}
+            }
+            """
         ]
-        let relationshipResult = CuttDB.handleListRelationships(
-            tableName: "test_table",
-            relationships: relationships,
-            dbService: mockService
-        )
-        assert(relationshipResult, "列表关系处理失败")
+    }
+    
+    override func setUp() {
+        super.setUp()
+    }
+    
+    override func tearDown() {
+        try? db.dropTable(name: TestData.table)
+        super.tearDown()
+    }
+    
+    // MARK: - Test Methods
+    
+    /// Test simple list properties
+    func testSimpleListProperties() {
+        // Arrange
+        let table = TestData.table
+        let columns = TestData.columns
+        let record = TestData.simpleRecord
         
-        print("\n=== 复杂列表属性测试完成 ===")
+        // Create test table
+        _ = try? db.createTable(
+            name: table,
+            columns: columns
+        )
+        
+        // Insert test data
+        let result = try? db.insert(
+            table: table,
+            data: record
+        )
+        
+        // Assert
+        XCTAssertNotNil(result)
+        XCTAssertTrue(result?.success ?? false)
+        
+        // Verify
+        let records = try? db.select(
+            table: table,
+            where: "id = ?",
+            params: [1]
+        )
+        
+        XCTAssertNotNil(records)
+        XCTAssertEqual(records?.count, 1)
+        
+        if let firstRecord = records?.first {
+            XCTAssertEqual(firstRecord["id"] as? Int, 1)
+            XCTAssertEqual(firstRecord["name"] as? String, "Test User")
+            XCTAssertEqual(firstRecord["age"] as? Int, 25)
+            
+            let scores = firstRecord["scores"] as? String
+            XCTAssertNotNil(scores)
+            XCTAssertEqual(scores, "[85, 90, 95]")
+            
+            let tags = firstRecord["tags"] as? String
+            XCTAssertNotNil(tags)
+            XCTAssertEqual(tags, "[\"tag1\", \"tag2\"]")
+            
+            let metadata = firstRecord["metadata"] as? String
+            XCTAssertNotNil(metadata)
+            XCTAssertEqual(metadata, "{\"key1\": \"value1\", \"key2\": 123}")
+        }
+    }
+    
+    /// Test complex list properties
+    func testComplexListProperties() {
+        // Arrange
+        let table = TestData.table
+        let columns = TestData.columns
+        let record = TestData.complexRecord
+        
+        // Create test table
+        _ = try? db.createTable(
+            name: table,
+            columns: columns
+        )
+        
+        // Insert test data
+        let result = try? db.insert(
+            table: table,
+            data: record
+        )
+        
+        // Assert
+        XCTAssertNotNil(result)
+        XCTAssertTrue(result?.success ?? false)
+        
+        // Verify
+        let records = try? db.select(
+            table: table,
+            where: "id = ?",
+            params: [2]
+        )
+        
+        XCTAssertNotNil(records)
+        XCTAssertEqual(records?.count, 1)
+        
+        if let firstRecord = records?.first {
+            XCTAssertEqual(firstRecord["id"] as? Int, 2)
+            XCTAssertEqual(firstRecord["name"] as? String, "Complex User")
+            XCTAssertEqual(firstRecord["age"] as? Int, 30)
+            
+            let scores = firstRecord["scores"] as? String
+            XCTAssertNotNil(scores)
+            XCTAssertEqual(scores, "[100, 95, 90, 85]")
+            
+            let tags = firstRecord["tags"] as? String
+            XCTAssertNotNil(tags)
+            XCTAssertEqual(tags, "[\"tag1\", \"tag2\", \"tag3\", \"tag4\"]")
+            
+            let metadata = firstRecord["metadata"] as? String
+            XCTAssertNotNil(metadata)
+            XCTAssertEqual(metadata, """
+            {
+                "key1": "value1",
+                "key2": 123,
+                "key3": [1, 2, 3],
+                "key4": {"nested": "value"}
+            }
+            """)
+        }
+    }
+    
+    /// Test invalid list properties
+    func testInvalidListProperties() {
+        // Arrange
+        let table = TestData.table
+        let columns = TestData.columns
+        let invalidRecord: [String: Any] = [
+            "id": 3,
+            "name": "Invalid User",
+            "age": "not a number",
+            "scores": "invalid json",
+            "tags": 123,
+            "metadata": ["invalid": "type"]
+        ]
+        
+        // Create test table
+        _ = try? db.createTable(
+            name: table,
+            columns: columns
+        )
+        
+        // Act & Assert
+        XCTAssertThrowsError(try db.insert(
+            table: table,
+            data: invalidRecord
+        )) { error in
+            XCTAssertTrue(error is CuttDBError)
+        }
+    }
+    
+    /// Test performance
+    func testPerformance() {
+        // Arrange
+        let table = TestData.table
+        let columns = TestData.columns
+        let record = TestData.complexRecord
+        
+        // Create test table
+        _ = try? db.createTable(
+            name: table,
+            columns: columns
+        )
+        
+        // Act & Assert
+        measure {
+            _ = try? db.insert(
+                table: table,
+                data: record
+            )
+        }
     }
 } 

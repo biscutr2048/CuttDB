@@ -1,111 +1,239 @@
-import Foundation
+//
+//  CreateModule_AutoCreateTest.swift
+//  CuttDB
+//
+//  Created by BISCUTR@QQ.COM on 2025/6/9.
+//
 
-/// 创建模块 - 自动创建表测试
-class CreateModule_AutoCreateTest: CuttDBTestCase {
-    override func runTests() {
-        print("\n=== 自动创建表测试 ===")
-        
-        // 测试数据
-        let basicColumns: [String: String] = [
-            "id": "INTEGER",
-            "name": "TEXT",
-            "created_at": "TEXT"
+import XCTest
+
+/// Test class for auto-create functionality
+class CreateModule_AutoCreateTest: XCTestCase {
+    /// Database instance for testing
+    private var db: CuttDB!
+    /// Mock service for testing
+    private var mockService: MockCuttDBService!
+    
+    /// Test data structure
+    struct TestData {
+        static let tableName = "test_table"
+        static let simpleRecord: [String: Any] = [
+            "id": 1,
+            "name": "Test",
+            "age": 25,
+            "email": "test@example.com",
+            "created_at": Date().timeIntervalSince1970
         ]
         
-        let complexColumns: [String: String] = [
-            "id": "INTEGER",
-            "name": "TEXT",
-            "email": "TEXT",
-            "age": "INTEGER",
-            "score": "REAL",
-            "is_active": "INTEGER",
-            "metadata": "TEXT",
-            "created_at": "TEXT",
-            "updated_at": "TEXT"
+        static let complexRecord: [String: Any] = [
+            "id": 2,
+            "name": "Complex",
+            "profile": [
+                "age": 30,
+                "city": "Beijing",
+                "contact": [
+                    "email": "complex@example.com",
+                    "phone": "123456"
+                ]
+            ],
+            "tags": ["swift", "macos"],
+            "meta": NSNull(),
+            "history": [
+                [
+                    "date": "2024-06-01",
+                    "action": "login"
+                ],
+                [
+                    "date": "2024-06-02",
+                    "action": "logout"
+                ]
+            ]
         ]
         
-        let tableConstraints: [String: String] = [
-            "PRIMARY KEY": "(id)",
-            "UNIQUE": "(email)",
-            "CHECK": "(age >= 0)"
+        static let recordWithSpecialTypes: [String: Any] = [
+            "id": 3,
+            "name": "Special",
+            "is_active": true,
+            "score": 95.5,
+            "created_at": "2024-06-09T10:00:00Z",
+            "metadata": [
+                "version": 1.0,
+                "flags": [1, 2, 3]
+            ]
+        ]
+    }
+    
+    override func setUp() {
+        super.setUp()
+        let config = CuttDBServiceConfiguration(dbPath: ":memory:")
+        mockService = MockCuttDBService()
+        db = CuttDB(configuration: config)
+    }
+    
+    override func tearDown() {
+        try? db.dropTable(name: TestData.tableName)
+        db = nil
+        mockService = nil
+        super.tearDown()
+    }
+    
+    // MARK: - Test Methods
+    
+    /// Test auto-create with simple record
+    func testAutoCreateWithSimpleRecord() {
+        // Arrange
+        let tableName = TestData.tableName
+        let record = TestData.simpleRecord
+        
+        // Act
+        let result = try? db.insertOrUpdate(
+            table: tableName,
+            record: record,
+            autoCreate: true
+        )
+        
+        // Assert
+        XCTAssertNotNil(result)
+        XCTAssertTrue(result?.success ?? false)
+        
+        // Verify
+        let tableExists = try? db.tableExists(name: tableName)
+        XCTAssertTrue(tableExists ?? false)
+        
+        let tableInfo = try? db.getTableInfo(name: tableName)
+        XCTAssertNotNil(tableInfo)
+        XCTAssertTrue(tableInfo?.columns.contains { $0.name == "id" } ?? false)
+        XCTAssertTrue(tableInfo?.columns.contains { $0.name == "name" } ?? false)
+        XCTAssertTrue(tableInfo?.columns.contains { $0.name == "age" } ?? false)
+        XCTAssertTrue(tableInfo?.columns.contains { $0.name == "email" } ?? false)
+        XCTAssertTrue(tableInfo?.columns.contains { $0.name == "created_at" } ?? false)
+    }
+    
+    /// Test auto-create with complex record
+    func testAutoCreateWithComplexRecord() {
+        // Arrange
+        let tableName = TestData.tableName
+        let record = TestData.complexRecord
+        
+        // Act
+        let result = try? db.insertOrUpdate(
+            table: tableName,
+            record: record,
+            autoCreate: true
+        )
+        
+        // Assert
+        XCTAssertNotNil(result)
+        XCTAssertTrue(result?.success ?? false)
+        
+        // Verify
+        let tableExists = try? db.tableExists(name: tableName)
+        XCTAssertTrue(tableExists ?? false)
+        
+        let tableInfo = try? db.getTableInfo(name: tableName)
+        XCTAssertNotNil(tableInfo)
+        XCTAssertTrue(tableInfo?.columns.contains { $0.name == "id" } ?? false)
+        XCTAssertTrue(tableInfo?.columns.contains { $0.name == "name" } ?? false)
+        XCTAssertTrue(tableInfo?.columns.contains { $0.name == "profile" } ?? false)
+        XCTAssertTrue(tableInfo?.columns.contains { $0.name == "tags" } ?? false)
+        XCTAssertTrue(tableInfo?.columns.contains { $0.name == "meta" } ?? false)
+        XCTAssertTrue(tableInfo?.columns.contains { $0.name == "history" } ?? false)
+    }
+    
+    /// Test auto-create with special types
+    func testAutoCreateWithSpecialTypes() {
+        // Arrange
+        let tableName = TestData.tableName
+        let record = TestData.recordWithSpecialTypes
+        
+        // Act
+        let result = try? db.insertOrUpdate(
+            table: tableName,
+            record: record,
+            autoCreate: true
+        )
+        
+        // Assert
+        XCTAssertNotNil(result)
+        XCTAssertTrue(result?.success ?? false)
+        
+        // Verify
+        let tableExists = try? db.tableExists(name: tableName)
+        XCTAssertTrue(tableExists ?? false)
+        
+        let tableInfo = try? db.getTableInfo(name: tableName)
+        XCTAssertNotNil(tableInfo)
+        XCTAssertTrue(tableInfo?.columns.contains { $0.name == "id" } ?? false)
+        XCTAssertTrue(tableInfo?.columns.contains { $0.name == "name" } ?? false)
+        XCTAssertTrue(tableInfo?.columns.contains { $0.name == "is_active" } ?? false)
+        XCTAssertTrue(tableInfo?.columns.contains { $0.name == "score" } ?? false)
+        XCTAssertTrue(tableInfo?.columns.contains { $0.name == "created_at" } ?? false)
+        XCTAssertTrue(tableInfo?.columns.contains { $0.name == "metadata" } ?? false)
+    }
+    
+    /// Test auto-create with invalid record
+    func testAutoCreateWithInvalidRecord() {
+        // Arrange
+        let tableName = TestData.tableName
+        let invalidRecord: [String: Any] = [
+            "id": "invalid_id",  // Invalid type for id
+            "name": 123,         // Invalid type for name
+            "age": "invalid_age" // Invalid type for age
         ]
         
-        let indexColumns: [String: [String]] = [
-            "idx_email": ["email"],
-            "idx_name_email": ["name", "email"],
-            "idx_created_at": ["created_at"]
-        ]
+        // Act & Assert
+        XCTAssertThrowsError(try db.insertOrUpdate(
+            table: tableName,
+            record: invalidRecord,
+            autoCreate: true
+        )) { error in
+            XCTAssertTrue(error is CuttDBError)
+        }
+    }
+    
+    /// Test auto-create with existing table
+    func testAutoCreateWithExistingTable() {
+        // Arrange
+        let tableName = TestData.tableName
+        let record = TestData.simpleRecord
         
-        // 创建Mock服务
-        let mockService = MockCuttDBService()
-        
-        // 测试基本表创建
-        print("\n测试基本表创建")
-        let basicResult = CuttDB.ensureTableExists(
-            tableName: "basic_table",
-            columns: basicColumns,
-            dbService: mockService
+        // Create table first
+        _ = try? db.createTable(
+            name: tableName,
+            columns: [
+                "id INTEGER PRIMARY KEY",
+                "name TEXT",
+                "age INTEGER",
+                "email TEXT",
+                "created_at INTEGER"
+            ]
         )
-        assert(basicResult, "基本表创建失败")
         
-        // 测试复杂表创建
-        print("\n测试复杂表创建")
-        let complexResult = CuttDB.ensureTableExists(
-            tableName: "complex_table",
-            columns: complexColumns,
-            constraints: tableConstraints,
-            dbService: mockService
+        // Act
+        let result = try? db.insertOrUpdate(
+            table: tableName,
+            record: record,
+            autoCreate: true
         )
-        assert(complexResult, "复杂表创建失败")
         
-        // 测试表已存在的情况
-        print("\n测试表已存在的情况")
-        mockService.shouldTableExist = true
-        let existingResult = CuttDB.ensureTableExists(
-            tableName: "existing_table",
-            columns: basicColumns,
-            dbService: mockService
-        )
-        assert(existingResult, "处理已存在表失败")
+        // Assert
+        XCTAssertNotNil(result)
+        XCTAssertTrue(result?.success ?? false)
+    }
+    
+    /// Test performance
+    func testPerformance() {
+        // Arrange
+        let tableName = TestData.tableName
+        let record = TestData.simpleRecord
         
-        // 测试表结构验证
-        print("\n测试表结构验证")
-        let validationResult = CuttDB.validateTableStructure(
-            tableName: "test_table",
-            expectedColumns: complexColumns,
-            dbService: mockService
-        )
-        assert(validationResult, "表结构验证失败")
-        
-        // 测试自动创建索引
-        print("\n测试自动创建索引")
-        let indexResult = CuttDB.createIndexesIfNeeded(
-            tableName: "test_table",
-            indexes: indexColumns,
-            dbService: mockService
-        )
-        assert(indexResult, "自动创建索引失败")
-        
-        // 测试索引已存在的情况
-        print("\n测试索引已存在的情况")
-        mockService.shouldIndexExist = true
-        let existingIndexResult = CuttDB.createIndexesIfNeeded(
-            tableName: "test_table",
-            indexes: ["idx_email": ["email"]],
-            dbService: mockService
-        )
-        assert(existingIndexResult, "处理已存在索引失败")
-        
-        // 测试复合索引创建
-        print("\n测试复合索引创建")
-        let compositeIndexResult = CuttDB.createIndexIfNeeded(
-            tableName: "test_table",
-            indexName: "idx_name_email",
-            columns: ["name", "email"],
-            dbService: mockService
-        )
-        assert(compositeIndexResult, "复合索引创建失败")
-        
-        print("\n=== 自动创建表测试完成 ===")
+        // Act & Assert
+        measure {
+            _ = try? db.insertOrUpdate(
+                table: tableName,
+                record: record,
+                autoCreate: true
+            )
+        }
     }
 } 
