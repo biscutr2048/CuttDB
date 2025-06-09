@@ -49,35 +49,72 @@ struct CreateModule_TableDefinitionTest {
     
     /// 测试逻辑
     struct Logic {
-        /// 测试简单JSON结构提取表格定义
-        static func testSimpleJSONTableDefinition() {
-            let def = CuttDB.extractTableDefinition(from: Data.simpleJSON)
-            print("Simple JSON Table Definition:", def)
-            assert(def.count == 2, "Should extract 2 columns")
+        private let cuttDB: CuttDB
+        
+        init() {
+            self.cuttDB = CuttDB(dbName: "test_table_definition.sqlite")
         }
         
-        /// 测试复杂JSON结构提取表格定义
-        static func testComplexJSONTableDefinition() {
-            let def = CuttDB.extractTableDefinition(from: Data.complexJSON)
-            print("Complex JSON Table Definition:", def)
-            assert(def.count > 2, "Should extract more than 2 columns")
+        /// 测试简单JSON结构创建表格
+        func testSimpleJSONTableDefinition() {
+            let result = cuttDB.createTableFromJSON(tableName: "simple_table", json: Data.simpleJSON)
+            print("Simple JSON Table Creation Result:", result)
+            assert(result, "Should create table successfully")
+            
+            let validation = cuttDB.validateTableStructure(
+                tableName: "simple_table",
+                expectedColumns: ["id": "INTEGER", "name": "TEXT"]
+            )
+            assert(validation, "Should validate table structure")
         }
         
-        /// 测试特殊类型JSON结构提取表格定义
-        static func testSpecialTypesTableDefinition() {
-            let def = CuttDB.extractTableDefinition(from: Data.jsonWithSpecialTypes)
-            print("Special Types Table Definition:", def)
-            assert(def.count == 6, "Should extract 6 columns")
+        /// 测试复杂JSON结构创建表格
+        func testComplexJSONTableDefinition() {
+            let result = cuttDB.createTableFromJSON(tableName: "complex_table", json: Data.complexJSON)
+            print("Complex JSON Table Creation Result:", result)
+            assert(result, "Should create table successfully")
+            
+            let validation = cuttDB.validateTableStructure(
+                tableName: "complex_table",
+                expectedColumns: [
+                    "id": "INTEGER",
+                    "name": "TEXT",
+                    "profile": "TEXT",
+                    "tags": "TEXT",
+                    "meta": "TEXT",
+                    "history": "TEXT"
+                ]
+            )
+            assert(validation, "Should validate table structure")
         }
         
-        /// 测试表格定义类型推断
-        static func testTableDefinitionTypeInference() {
-            let def = CuttDB.extractTableDefinition(from: Data.jsonWithSpecialTypes)
-            let types = def.map { $0.1 }
-            print("Inferred Types:", types)
-            assert(types.contains("INTEGER"), "Should infer INTEGER type")
-            assert(types.contains("TEXT"), "Should infer TEXT type")
-            assert(types.contains("REAL"), "Should infer REAL type")
+        /// 测试特殊类型JSON结构创建表格
+        func testSpecialTypesTableDefinition() {
+            let result = cuttDB.createTableFromJSON(tableName: "special_types_table", json: Data.jsonWithSpecialTypes)
+            print("Special Types Table Creation Result:", result)
+            assert(result, "Should create table successfully")
+            
+            let validation = cuttDB.validateTableStructure(
+                tableName: "special_types_table",
+                expectedColumns: [
+                    "id": "INTEGER",
+                    "name": "TEXT",
+                    "is_active": "INTEGER",
+                    "score": "REAL",
+                    "created_at": "TEXT",
+                    "metadata": "TEXT"
+                ]
+            )
+            assert(validation, "Should validate table structure")
+        }
+        
+        /// 运行所有测试
+        func runTests() {
+            print("Running Table Definition Tests...")
+            testSimpleJSONTableDefinition()
+            testComplexJSONTableDefinition()
+            testSpecialTypesTableDefinition()
+            print("All Table Definition Tests Completed Successfully!")
         }
     }
 } 
