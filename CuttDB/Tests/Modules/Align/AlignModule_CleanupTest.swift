@@ -1,4 +1,5 @@
 import Foundation
+import XCTest
 
 /// 对齐模块 - 数据清理测试
 struct AlignModule_CleanupTest {
@@ -116,88 +117,125 @@ struct AlignModule_CleanupTest {
     }
 }
 
-class AlignModule_CleanupTest: CuttDBTestCase {
-    override func runTests() {
-        print("Running AlignModule_CleanupTest...")
-        
-        // 创建测试数据
-        let testData = [
-            "tableName": "test_table",
-            "condition": "status = 'inactive'",
-            "conditions": ["status = 'inactive'", "created_at < '2024-01-01'"],
-            "config": [
-                "batch_size": 100,
-                "max_retries": 3
-            ],
-            "backupConfig": [
-                "backup_table": "test_table_backup",
-                "include_data": true
-            ],
-            "operation": "cleanup",
-            "details": [
-                "affected_rows": 100,
-                "timestamp": "2024-03-20 10:00:00"
-            ]
+class AlignModule_CleanupTest: XCTestCase {
+    private var db: CuttDB!
+    private var mockService: MockCuttDBService!
+    
+    override func setUp() {
+        super.setUp()
+        let config = CuttDBServiceConfiguration(dbPath: ":memory:")
+        mockService = MockCuttDBService()
+        db = CuttDB(configuration: config)
+    }
+    
+    override func tearDown() {
+        db = nil
+        mockService = nil
+        super.tearDown()
+    }
+    
+    func testCleanupDuplicates() {
+        // 准备测试数据
+        let tableName = "test_table"
+        let columns = [
+            "id": "INTEGER PRIMARY KEY",
+            "name": "TEXT",
+            "email": "TEXT"
         ]
         
-        // 创建Mock服务
-        let mockService = MockCuttDBService()
+        // 创建表
+        XCTAssertTrue(db.ensureTableExists(tableName: tableName, columns: columns))
         
-        // 测试清理数据
-        print("Testing cleanupData...")
-        let cleanupResult = CuttDB.cleanupData(
-            tableName: testData["tableName"] as! String,
-            condition: testData["condition"] as! String,
-            dbService: mockService
-        )
-        assert(cleanupResult, "Cleanup data failed")
+        // 插入重复数据
+        let duplicateData = [
+            ["id": "1", "name": "John", "email": "john@example.com"],
+            ["id": "2", "name": "John", "email": "john@example.com"],
+            ["id": "3", "name": "Jane", "email": "jane@example.com"]
+        ]
         
-        // 测试批量清理
-        print("Testing batchCleanup...")
-        let batchResult = CuttDB.batchCleanup(
-            tableName: testData["tableName"] as! String,
-            conditions: testData["conditions"] as! [String],
-            dbService: mockService
-        )
-        assert(batchResult, "Batch cleanup failed")
+        for data in duplicateData {
+            XCTAssertTrue(db.insertObject(data))
+        }
         
-        // 测试验证清理
-        print("Testing validateCleanup...")
-        let validateResult = CuttDB.validateCleanup(
-            tableName: testData["tableName"] as! String,
-            condition: testData["condition"] as! String,
-            dbService: mockService
-        )
-        assert(validateResult, "Validate cleanup failed")
+        // 清理重复数据
+        let aligner = TableAligner(service: mockService)
+        XCTAssertTrue(aligner.cleanupDuplicates(tableName, uniqueColumns: ["name", "email"]))
         
-        // 测试备份
-        print("Testing backupBeforeCleanup...")
-        let backupResult = CuttDB.backupBeforeCleanup(
-            tableName: testData["tableName"] as! String,
-            backupTable: (testData["backupConfig"] as! [String: Any])["backup_table"] as! String,
-            dbService: mockService
-        )
-        assert(backupResult, "Backup before cleanup failed")
+        // 验证结果
+        let results = db.queryObjects([String: Any].self, whereClause: "name = 'John'")
+        XCTAssertEqual(results.count, 1, "Should only have one record after cleanup")
+    }
+    
+    func testDropMissingData() {
+        // 准备测试数据
+        let sourceTable = "source_table"
+        let targetTable = "target_table"
+        let columns = [
+            "id": "INTEGER PRIMARY KEY",
+            "name": "TEXT"
+        ]
         
-        // 测试恢复
-        print("Testing restoreAfterCleanup...")
-        let restoreResult = CuttDB.restoreAfterCleanup(
-            tableName: testData["tableName"] as! String,
-            backupTable: (testData["backupConfig"] as! [String: Any])["backup_table"] as! String,
-            dbService: mockService
-        )
-        assert(restoreResult, "Restore after cleanup failed")
+        // 创建源表和目标表
+        XCTAssertTrue(db.ensureTableExists(tableName: sourceTable, columns: columns))
+        XCTAssertTrue(db.ensureTableExists(tableName: targetTable, columns: columns))
         
-        // 测试记录清理操作
-        print("Testing logCleanupOperation...")
-        let logResult = CuttDB.logCleanupOperation(
-            tableName: testData["tableName"] as! String,
-            operation: testData["operation"] as! String,
-            condition: testData["condition"] as! String,
-            dbService: mockService
-        )
-        assert(logResult, "Log cleanup operation failed")
+        // 插入测试数据
+        let sourceData = [
+            ["id": "1", "name": "John"],
+            ["id": "2", "name": "Jane"]
+        ]
         
-        print("AlignModule_CleanupTest completed successfully!")
+        let targetData = [
+            ["id": "1", "name": "John"],
+            ["id": "3", "name": "Bob"]
+        ]
+        
+        for data in sourceData {
+            XCTAssertTrue(db.insertObject(data))
+        }
+        
+        for data in targetData {
+            XCTAssertTrue(db.insertObject(data))
+        }
+        
+        // 删除缺失数据
+        let aligner = TableAligner(service: mockService)
+        XCTAssertTrue(aligner.dropMissingData(sourceTable: sourceTable, targetTable: targetTable))
+        
+        // 验证结果
+        let results = db.queryObjects([String: Any].self, whereClause: "name = 'Bob'")
+        XCTAssertEqual(results.count, 0, "Should not have Bob's record after cleanup")
+    }
+    
+    func testAlignTable() {
+        // 准备测试数据
+        let sourceTable = "source_table"
+        let targetTable = "target_table"
+        let columns = [
+            "id": "INTEGER PRIMARY KEY",
+            "name": "TEXT",
+            "email": "TEXT"
+        ]
+        
+        // 创建源表
+        XCTAssertTrue(db.ensureTableExists(tableName: sourceTable, columns: columns))
+        
+        // 插入测试数据
+        let testData = [
+            ["id": "1", "name": "John", "email": "john@example.com"],
+            ["id": "2", "name": "Jane", "email": "jane@example.com"]
+        ]
+        
+        for data in testData {
+            XCTAssertTrue(db.insertObject(data))
+        }
+        
+        // 对齐表结构
+        let aligner = TableAligner(service: mockService)
+        XCTAssertTrue(aligner.alignTable(sourceTable: sourceTable, targetTable: targetTable, columns: columns))
+        
+        // 验证结果
+        let results = db.queryObjects([String: Any].self, whereClause: nil)
+        XCTAssertEqual(results.count, 2, "Should have all records after alignment")
     }
 } 

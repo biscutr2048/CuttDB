@@ -1,139 +1,165 @@
 import Foundation
+import XCTest
 
-/// 对齐模块 - 表结构升级测试
-struct AlignModule_UpgradeTest {
-    /// 测试数据
-    struct Data {
-        static let oldTableStructure: [String: Any] = [
-            "name": "users",
-            "columns": [
-                [
-                    "name": "id",
-                    "type": "INTEGER",
-                    "isPrimary": true
-                ],
-                [
-                    "name": "name",
-                    "type": "TEXT"
-                ],
-                [
-                    "name": "email",
-                    "type": "TEXT"
-                ]
-            ]
-        ]
-        
-        static let newTableStructure: [String: Any] = [
-            "name": "users",
-            "columns": [
-                [
-                    "name": "id",
-                    "type": "INTEGER",
-                    "isPrimary": true
-                ],
-                [
-                    "name": "name",
-                    "type": "TEXT"
-                ],
-                [
-                    "name": "email",
-                    "type": "TEXT"
-                ],
-                [
-                    "name": "phone",
-                    "type": "TEXT"
-                ],
-                [
-                    "name": "address",
-                    "type": "TEXT"
-                ]
-            ]
-        ]
-        
-        static let upgradeConfig: [String: Any] = [
-            "backup_before_upgrade": true,
-            "validate_after_upgrade": true,
-            "rollback_on_failure": true
-        ]
+class AlignModule_UpgradeTest: XCTestCase {
+    private var db: CuttDB!
+    private var mockService: MockCuttDBService!
+    
+    override func setUp() {
+        super.setUp()
+        let config = CuttDBServiceConfiguration(dbPath: ":memory:")
+        mockService = MockCuttDBService()
+        db = CuttDB(configuration: config)
     }
     
-    /// 测试逻辑
-    struct Logic {
-        /// 测试表结构升级
-        static func testTableStructureUpgrade() {
-            let mockDBService = MockCuttDBService()
-            let result = CuttDB.upgradeTableStructure(
-                tableName: "users",
-                newStructure: Data.newTableStructure,
-                dbService: mockDBService
-            )
-            print("Table Structure Upgrade Result:", result)
-            assert(result, "Should upgrade table structure successfully")
+    override func tearDown() {
+        db = nil
+        mockService = nil
+        super.tearDown()
+    }
+    
+    func testUpgradeTableStructure() {
+        // 准备测试数据
+        let tableName = "test_table"
+        let oldColumns = [
+            "id": "INTEGER PRIMARY KEY",
+            "name": "TEXT"
+        ]
+        
+        let newColumns = [
+            "id": "INTEGER PRIMARY KEY",
+            "name": "TEXT",
+            "email": "TEXT",
+            "age": "INTEGER"
+        ]
+        
+        // 创建旧表结构
+        XCTAssertTrue(db.ensureTableExists(tableName: tableName, columns: oldColumns))
+        
+        // 插入测试数据
+        let testData = [
+            ["id": "1", "name": "John"],
+            ["id": "2", "name": "Jane"]
+        ]
+        
+        for data in testData {
+            XCTAssertTrue(db.insertObject(data))
         }
         
-        /// 测试列添加
-        static func testColumnAddition() {
-            let mockDBService = MockCuttDBService()
-            let result = CuttDB.addColumns(
-                tableName: "users",
-                columns: [
-                    ["name": "phone", "type": "TEXT"],
-                    ["name": "address", "type": "TEXT"]
-                ],
-                dbService: mockDBService
-            )
-            print("Column Addition Result:", result)
-            assert(result, "Should add columns successfully")
+        // 升级表结构
+        let aligner = TableAligner(service: mockService)
+        XCTAssertTrue(aligner.upgradeTableStructure(tableName: tableName, newColumns: newColumns))
+        
+        // 验证结果
+        let results = db.queryObjects([String: Any].self, whereClause: nil)
+        XCTAssertEqual(results.count, 2, "Should have all records after upgrade")
+        
+        // 验证新列是否存在
+        let firstRecord = results.first
+        XCTAssertNotNil(firstRecord?["email"], "New column 'email' should exist")
+        XCTAssertNotNil(firstRecord?["age"], "New column 'age' should exist")
+    }
+    
+    func testAddColumn() {
+        // 准备测试数据
+        let tableName = "test_table"
+        let columns = [
+            "id": "INTEGER PRIMARY KEY",
+            "name": "TEXT"
+        ]
+        
+        // 创建表
+        XCTAssertTrue(db.ensureTableExists(tableName: tableName, columns: columns))
+        
+        // 插入测试数据
+        let testData = [
+            ["id": "1", "name": "John"],
+            ["id": "2", "name": "Jane"]
+        ]
+        
+        for data in testData {
+            XCTAssertTrue(db.insertObject(data))
         }
         
-        /// 测试列修改
-        static func testColumnModification() {
-            let mockDBService = MockCuttDBService()
-            let result = CuttDB.modifyColumns(
-                tableName: "users",
-                columns: [
-                    ["name": "email", "type": "VARCHAR(255)"]
-                ],
-                dbService: mockDBService
-            )
-            print("Column Modification Result:", result)
-            assert(result, "Should modify columns successfully")
+        // 添加新列
+        let aligner = TableAligner(service: mockService)
+        XCTAssertTrue(aligner.addColumn(tableName: tableName, columnName: "email", columnType: "TEXT"))
+        
+        // 验证结果
+        let results = db.queryObjects([String: Any].self, whereClause: nil)
+        XCTAssertEqual(results.count, 2, "Should have all records after adding column")
+        
+        // 验证新列是否存在
+        let firstRecord = results.first
+        XCTAssertNotNil(firstRecord?["email"], "New column 'email' should exist")
+    }
+    
+    func testModifyColumn() {
+        // 准备测试数据
+        let tableName = "test_table"
+        let columns = [
+            "id": "INTEGER PRIMARY KEY",
+            "age": "INTEGER"
+        ]
+        
+        // 创建表
+        XCTAssertTrue(db.ensureTableExists(tableName: tableName, columns: columns))
+        
+        // 插入测试数据
+        let testData = [
+            ["id": "1", "age": "25"],
+            ["id": "2", "age": "30"]
+        ]
+        
+        for data in testData {
+            XCTAssertTrue(db.insertObject(data))
         }
         
-        /// 测试列删除
-        static func testColumnDeletion() {
-            let mockDBService = MockCuttDBService()
-            let result = CuttDB.dropColumns(
-                tableName: "users",
-                columns: ["phone", "address"],
-                dbService: mockDBService
-            )
-            print("Column Deletion Result:", result)
-            assert(result, "Should delete columns successfully")
+        // 修改列类型
+        let aligner = TableAligner(service: mockService)
+        XCTAssertTrue(aligner.modifyColumn(tableName: tableName, columnName: "age", newType: "REAL"))
+        
+        // 验证结果
+        let results = db.queryObjects([String: Any].self, whereClause: nil)
+        XCTAssertEqual(results.count, 2, "Should have all records after modifying column")
+        
+        // 验证列类型是否已修改
+        let firstRecord = results.first
+        XCTAssertNotNil(firstRecord?["age"], "Column 'age' should exist with new type")
+    }
+    
+    func testDropColumn() {
+        // 准备测试数据
+        let tableName = "test_table"
+        let columns = [
+            "id": "INTEGER PRIMARY KEY",
+            "name": "TEXT",
+            "email": "TEXT"
+        ]
+        
+        // 创建表
+        XCTAssertTrue(db.ensureTableExists(tableName: tableName, columns: columns))
+        
+        // 插入测试数据
+        let testData = [
+            ["id": "1", "name": "John", "email": "john@example.com"],
+            ["id": "2", "name": "Jane", "email": "jane@example.com"]
+        ]
+        
+        for data in testData {
+            XCTAssertTrue(db.insertObject(data))
         }
         
-        /// 测试升级配置
-        static func testUpgradeConfiguration() {
-            let mockDBService = MockCuttDBService()
-            let result = CuttDB.configureUpgrade(
-                tableName: "users",
-                config: Data.upgradeConfig,
-                dbService: mockDBService
-            )
-            print("Upgrade Configuration Result:", result)
-            assert(result, "Should configure upgrade successfully")
-        }
+        // 删除列
+        let aligner = TableAligner(service: mockService)
+        XCTAssertTrue(aligner.dropColumn(tableName: tableName, columnName: "email"))
         
-        /// 测试升级验证
-        static func testUpgradeValidation() {
-            let mockDBService = MockCuttDBService()
-            let result = CuttDB.validateUpgrade(
-                tableName: "users",
-                newStructure: Data.newTableStructure,
-                dbService: mockDBService
-            )
-            print("Upgrade Validation Result:", result)
-            assert(result, "Should validate upgrade successfully")
-        }
+        // 验证结果
+        let results = db.queryObjects([String: Any].self, whereClause: nil)
+        XCTAssertEqual(results.count, 2, "Should have all records after dropping column")
+        
+        // 验证列是否已删除
+        let firstRecord = results.first
+        XCTAssertNil(firstRecord?["email"], "Column 'email' should not exist")
     }
 } 
