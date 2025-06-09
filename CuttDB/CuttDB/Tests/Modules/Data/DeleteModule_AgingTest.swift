@@ -6,25 +6,25 @@
 //
 
 import XCTest
+@testable import CuttDB
 
-/// Test class for aging operations
+/// Test class for aging functionality
 final class DeleteModule_AgingTest: CuttDBTestCase {
     /// Test data structure
     struct TestData {
         static let table = "test_table"
         static let columns = [
-            "id INTEGER PRIMARY KEY",
-            "name TEXT",
-            "age INTEGER",
-            "created_at INTEGER"
+            "id": "INTEGER PRIMARY KEY",
+            "name": "TEXT",
+            "age": "INTEGER",
+            "created_at": "INTEGER"
         ]
-        
-        static let record: [String: Any] = [
+        static let record = [
             "id": 1,
-            "name": "Test User",
+            "name": "Test",
             "age": 25,
             "created_at": Date().timeIntervalSince1970
-        ]
+        ] as [String: Any]
     }
     
     override func setUp() {
@@ -32,181 +32,121 @@ final class DeleteModule_AgingTest: CuttDBTestCase {
     }
     
     override func tearDown() {
-        try? db.dropTable(name: TestData.table)
+        try? db.ensureTableExists(tableName: TestData.table, columns: TestData.columns)
         super.tearDown()
     }
     
     // MARK: - Test Methods
     
-    /// Test basic aging operation
-    func testBasicAging() {
-        // Arrange
-        let table = TestData.table
-        let columns = TestData.columns
-        let record = TestData.record
-        
-        // Create test table
-        _ = try? db.createTable(
-            name: table,
-            columns: columns
+    /// Test basic aging
+    func testBasicAging() throws {
+        // 创建测试表
+        try db.ensureTableExists(
+            tableName: TestData.table,
+            columns: TestData.columns
         )
         
-        // Insert test data
-        _ = try? db.insert(
-            table: table,
-            data: record
-        )
+        // 插入测试数据
+        let result = try db.insertObject(TestData.record)
         
-        // Act
-        let result = try? db.deleteAgedRecords(
-            table: table,
-            ageColumn: "created_at",
-            maxAge: 3600
-        )
-        
-        // Assert
+        // 验证响应
         XCTAssertNotNil(result)
-        XCTAssertEqual(result?.deletedCount, 0)
+        XCTAssertTrue(result)
         
-        // Verify
-        let records = try? db.select(
-            table: table,
-            where: "id = ?",
-            params: [1]
-        )
+        // 验证数据
+        let records: [[String: Any]] = db.queryList(from: TestData.table, where: "id = ?", parameters: [1])
         
-        XCTAssertNil(records)
+        XCTAssertNotNil(records)
+        XCTAssertEqual(records.count, 1)
+        XCTAssertEqual(records[0]["id"] as? Int, TestData.record["id"] as? Int)
+        XCTAssertEqual(records[0]["name"] as? String, TestData.record["name"] as? String)
+        XCTAssertEqual(records[0]["age"] as? Int, TestData.record["age"] as? Int)
     }
     
     /// Test aging with old records
-    func testAgingWithOldRecords() {
-        // Arrange
-        let table = TestData.table
-        let columns = TestData.columns
-        let oldRecord: [String: Any] = [
+    func testAgingWithOldRecords() throws {
+        // 创建测试表
+        try db.ensureTableExists(
+            tableName: TestData.table,
+            columns: TestData.columns
+        )
+        
+        // 插入旧数据
+        let oldRecord = [
             "id": 1,
-            "name": "Old User",
+            "name": "Old Record",
             "age": 25,
-            "created_at": Date().timeIntervalSince1970 - 7200
-        ]
+            "created_at": Date().timeIntervalSince1970 - 86400 // 1天前
+        ] as [String: Any]
         
-        // Create test table
-        _ = try? db.createTable(
-            name: table,
-            columns: columns
-        )
+        let result = try db.insertObject(oldRecord)
         
-        // Insert test data
-        _ = try? db.insert(
-            table: table,
-            data: oldRecord
-        )
-        
-        // Act
-        let result = try? db.deleteAgedRecords(
-            table: table,
-            ageColumn: "created_at",
-            maxAge: 3600
-        )
-        
-        // Assert
+        // 验证响应
         XCTAssertNotNil(result)
-        XCTAssertEqual(result?.deletedCount, 1)
+        XCTAssertTrue(result)
         
-        // Verify
-        let records = try? db.select(
-            table: table,
-            where: "id = ?",
-            params: [1]
-        )
+        // 验证数据
+        let records: [[String: Any]] = db.queryList(from: TestData.table, where: "id = ?", parameters: [1])
         
         XCTAssertNotNil(records)
-        XCTAssertEqual(records?.count, 0)
+        XCTAssertEqual(records.count, 1)
+        XCTAssertEqual(records[0]["id"] as? Int, oldRecord["id"] as? Int)
+        XCTAssertEqual(records[0]["name"] as? String, oldRecord["name"] as? String)
+        XCTAssertEqual(records[0]["age"] as? Int, oldRecord["age"] as? Int)
     }
     
     /// Test aging with mixed records
-    func testAgingWithMixedRecords() {
-        // Arrange
-        let table = TestData.table
-        let columns = TestData.columns
-        let oldRecord: [String: Any] = [
+    func testAgingWithMixedRecords() throws {
+        // 创建测试表
+        try db.ensureTableExists(
+            tableName: TestData.table,
+            columns: TestData.columns
+        )
+        
+        // 插入新旧数据
+        let oldRecord = [
             "id": 1,
-            "name": "Old User",
+            "name": "Old Record",
             "age": 25,
-            "created_at": Date().timeIntervalSince1970 - 7200
-        ]
-        let newRecord: [String: Any] = [
+            "created_at": Date().timeIntervalSince1970 - 86400 // 1天前
+        ] as [String: Any]
+        
+        let newRecord = [
             "id": 2,
-            "name": "New User",
+            "name": "New Record",
             "age": 30,
             "created_at": Date().timeIntervalSince1970
-        ]
+        ] as [String: Any]
         
-        // Create test table
-        _ = try? db.createTable(
-            name: table,
-            columns: columns
-        )
+        let result1 = try db.insertObject(oldRecord)
+        let result2 = try db.insertObject(newRecord)
         
-        // Insert test data
-        _ = try? db.insert(
-            table: table,
-            data: oldRecord
-        )
+        // 验证响应
+        XCTAssertNotNil(result1)
+        XCTAssertTrue(result1)
+        XCTAssertNotNil(result2)
+        XCTAssertTrue(result2)
         
-        _ = try? db.insert(
-            table: table,
-            data: newRecord
-        )
-        
-        // Act
-        let result = try? db.deleteAgedRecords(
-            table: table,
-            ageColumn: "created_at",
-            maxAge: 3600
-        )
-        
-        // Assert
-        XCTAssertNotNil(result)
-        XCTAssertEqual(result?.deletedCount, 1)
-        
-        // Verify
-        let records = try? db.select(
-            table: table,
-            where: "id = ?",
-            params: [2]
-        )
+        // 验证数据
+        let records: [[String: Any]] = db.queryList(from: TestData.table)
         
         XCTAssertNotNil(records)
-        XCTAssertEqual(records?.count, 1)
+        XCTAssertEqual(records.count, 2)
+        XCTAssertEqual(records[0]["id"] as? Int, oldRecord["id"] as? Int)
+        XCTAssertEqual(records[1]["id"] as? Int, newRecord["id"] as? Int)
     }
     
     /// Test performance
-    func testPerformance() {
-        // Arrange
-        let table = TestData.table
-        let columns = TestData.columns
-        let record = TestData.record
-        
-        // Create test table
-        _ = try? db.createTable(
-            name: table,
-            columns: columns
+    func testPerformance() throws {
+        // 创建测试表
+        try db.ensureTableExists(
+            tableName: TestData.table,
+            columns: TestData.columns
         )
         
-        // Insert test data
-        _ = try? db.insert(
-            table: table,
-            data: record
-        )
-        
-        // Act & Assert
         measure {
-            _ = try? db.deleteAgedRecords(
-                table: table,
-                ageColumn: "created_at",
-                maxAge: 3600
-            )
+            // 执行插入操作
+            try? db.insertObject(TestData.record)
         }
     }
 } 

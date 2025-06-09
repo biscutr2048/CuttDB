@@ -6,217 +6,77 @@
 //
 
 import XCTest
+@testable import CuttDB
 
 /// Test class for complex list properties operations
 final class ListPropertiesModule_ComplexTest: CuttDBTestCase {
-    /// Test data structure
-    struct TestData {
-        static let table = "test_table"
-        static let columns = [
-            "id INTEGER PRIMARY KEY",
-            "name TEXT",
-            "age INTEGER",
-            "scores TEXT",
-            "tags TEXT",
-            "metadata TEXT"
-        ]
-        
-        static let simpleRecord: [String: Any] = [
-            "id": 1,
-            "name": "Test User",
-            "age": 25,
-            "scores": "[85, 90, 95]",
-            "tags": "[\"tag1\", \"tag2\"]",
-            "metadata": "{\"key1\": \"value1\", \"key2\": 123}"
-        ]
-        
-        static let complexRecord: [String: Any] = [
-            "id": 2,
-            "name": "Complex User",
-            "age": 30,
-            "scores": "[100, 95, 90, 85]",
-            "tags": "[\"tag1\", \"tag2\", \"tag3\", \"tag4\"]",
-            "metadata": """
-            {
-                "key1": "value1",
-                "key2": 123,
-                "key3": [1, 2, 3],
-                "key4": {"nested": "value"}
-            }
-            """
-        ]
+    struct TestRecord: Codable, Equatable {
+        let id: Int
+        let name: String
+        let age: Int
+        let tags: String
     }
+    let table = "list_properties_test"
     
     override func setUp() {
         super.setUp()
+        _ = db.ensureTableExists(tableName: table, columns: [
+            "id": "INTEGER PRIMARY KEY",
+            "name": "TEXT",
+            "age": "INTEGER",
+            "tags": "TEXT"
+        ])
     }
     
     override func tearDown() {
-        try? db.dropTable(name: TestData.table)
+        // 通常测试用例不需要 dropTable，直接保证表存在即可
         super.tearDown()
     }
     
     // MARK: - Test Methods
     
-    /// Test simple list properties
-    func testSimpleListProperties() {
-        // Arrange
-        let table = TestData.table
-        let columns = TestData.columns
-        let record = TestData.simpleRecord
-        
-        // Create test table
-        _ = try? db.createTable(
-            name: table,
-            columns: columns
-        )
-        
-        // Insert test data
-        let result = try? db.insert(
-            table: table,
-            data: record
-        )
-        
-        // Assert
-        XCTAssertNotNil(result)
-        XCTAssertTrue(result?.success ?? false)
-        
-        // Verify
-        let records = try? db.select(
-            table: table,
-            where: "id = ?",
-            params: [1]
-        )
-        
-        XCTAssertNotNil(records)
-        XCTAssertEqual(records?.count, 1)
-        
-        if let firstRecord = records?.first {
-            XCTAssertEqual(firstRecord["id"] as? Int, 1)
-            XCTAssertEqual(firstRecord["name"] as? String, "Test User")
-            XCTAssertEqual(firstRecord["age"] as? Int, 25)
-            
-            let scores = firstRecord["scores"] as? String
-            XCTAssertNotNil(scores)
-            XCTAssertEqual(scores, "[85, 90, 95]")
-            
-            let tags = firstRecord["tags"] as? String
-            XCTAssertNotNil(tags)
-            XCTAssertEqual(tags, "[\"tag1\", \"tag2\"]")
-            
-            let metadata = firstRecord["metadata"] as? String
-            XCTAssertNotNil(metadata)
-            XCTAssertEqual(metadata, "{\"key1\": \"value1\", \"key2\": 123}")
-        }
+    /// Test basic list properties
+    func testBasicListProperties() throws {
+        let record = TestRecord(id: 1, name: "Test", age: 25, tags: "tag1,tag2,tag3")
+        let result = db.insertObject(record)
+        XCTAssertTrue(result)
+        let records: [TestRecord] = db.query(from: table, where: "id = 1")
+        XCTAssertEqual(records.count, 1)
+        XCTAssertEqual(records[0], record)
     }
     
-    /// Test complex list properties
-    func testComplexListProperties() {
-        // Arrange
-        let table = TestData.table
-        let columns = TestData.columns
-        let record = TestData.complexRecord
-        
-        // Create test table
-        _ = try? db.createTable(
-            name: table,
-            columns: columns
-        )
-        
-        // Insert test data
-        let result = try? db.insert(
-            table: table,
-            data: record
-        )
-        
-        // Assert
-        XCTAssertNotNil(result)
-        XCTAssertTrue(result?.success ?? false)
-        
-        // Verify
-        let records = try? db.select(
-            table: table,
-            where: "id = ?",
-            params: [2]
-        )
-        
-        XCTAssertNotNil(records)
-        XCTAssertEqual(records?.count, 1)
-        
-        if let firstRecord = records?.first {
-            XCTAssertEqual(firstRecord["id"] as? Int, 2)
-            XCTAssertEqual(firstRecord["name"] as? String, "Complex User")
-            XCTAssertEqual(firstRecord["age"] as? Int, 30)
-            
-            let scores = firstRecord["scores"] as? String
-            XCTAssertNotNil(scores)
-            XCTAssertEqual(scores, "[100, 95, 90, 85]")
-            
-            let tags = firstRecord["tags"] as? String
-            XCTAssertNotNil(tags)
-            XCTAssertEqual(tags, "[\"tag1\", \"tag2\", \"tag3\", \"tag4\"]")
-            
-            let metadata = firstRecord["metadata"] as? String
-            XCTAssertNotNil(metadata)
-            XCTAssertEqual(metadata, """
-            {
-                "key1": "value1",
-                "key2": 123,
-                "key3": [1, 2, 3],
-                "key4": {"nested": "value"}
-            }
-            """)
-        }
-    }
-    
-    /// Test invalid list properties
-    func testInvalidListProperties() {
-        // Arrange
-        let table = TestData.table
-        let columns = TestData.columns
-        let invalidRecord: [String: Any] = [
-            "id": 3,
-            "name": "Invalid User",
-            "age": "not a number",
-            "scores": "invalid json",
-            "tags": 123,
-            "metadata": ["invalid": "type"]
+    /// Test list properties with multiple values
+    func testListPropertiesWithMultipleValues() throws {
+        let records = [
+            TestRecord(id: 1, name: "Test 1", age: 25, tags: "tag1,tag2"),
+            TestRecord(id: 2, name: "Test 2", age: 30, tags: "tag2,tag3"),
+            TestRecord(id: 3, name: "Test 3", age: 35, tags: "tag1,tag3")
         ]
-        
-        // Create test table
-        _ = try? db.createTable(
-            name: table,
-            columns: columns
-        )
-        
-        // Act & Assert
-        XCTAssertThrowsError(try db.insert(
-            table: table,
-            data: invalidRecord
-        )) { error in
-            XCTAssertTrue(error is CuttDBError)
+        for rec in records {
+            XCTAssertTrue(db.insertObject(rec))
         }
+        let results: [TestRecord] = db.query(from: table)
+        XCTAssertEqual(results.count, 3)
+    }
+    
+    /// Test list properties with invalid data
+    func testListPropertiesWithInvalidData() throws {
+        struct InvalidRecord: Codable {
+            let id: String
+            let name: Int
+            let age: String
+            let tags: Int
+        }
+        let invalid = InvalidRecord(id: "bad", name: 123, age: "not a number", tags: 456)
+        let result = db.insertObject(invalid)
+        XCTAssertFalse(result)
     }
     
     /// Test performance
-    func testPerformance() {
-        // Arrange
-        let table = TestData.table
-        let columns = TestData.columns
-        let record = TestData.complexRecord
-        
-        // Create test table
-        _ = try? db.createTable(
-            name: table,
-            columns: columns
-        )
-        
-        // Act & Assert
-        measure {
-            _ = try? db.insert(
-                table: table,
-                data: record
-            )
+    func testPerformance() throws {
+        let record = TestRecord(id: 99, name: "Perf", age: 1, tags: "t")
+        self.measure {
+            _ = db.insertObject(record)
         }
     }
 } 

@@ -33,7 +33,7 @@ class CuttDBTestCase: XCTestCase {
     }
     
     /// Initialize test case
-    override init() {
+    init() {
         super.init()
     }
 }

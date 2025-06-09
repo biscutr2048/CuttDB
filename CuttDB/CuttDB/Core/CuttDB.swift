@@ -207,4 +207,14 @@ public struct CuttDB {
         let tableName = String(describing: type).components(separatedBy: ".").last ?? ""
         return queryManager.exists(tableName: tableName, whereClause: whereClause, parameters: parameters)
     }
+}
+
+// MARK: - CuttDBError
+
+public enum CuttDBError: Error, Equatable {
+    case databaseError(String)
+    case invalidOperation(String)
+    case invalidData(String)
+    case tableNotFound(String)
+    case unknown(String)
 } 
