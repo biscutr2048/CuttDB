@@ -1,254 +1,325 @@
 import Foundation
+@testable import CuttDB
 
-/// 模拟数据库服务
-/// 用于测试环境，模拟数据库操作
-class MockCuttDBService {
-    // MARK: - 配置属性
+/// Mock implementation of CuttDBService for testing
+class MockCuttDBService: CuttDBService {
+    // MARK: - Properties
     
-    /// 是否应该让键存在（用于测试更新操作）
-    var shouldKeyExist: Bool = false
+    /// Configuration for the mock service
+    private let configuration: CuttDBServiceConfiguration
     
-    /// 是否应该模拟错误
-    var shouldSimulateError: Bool = false
+    /// In-memory storage for tables
+    private var tables: [String: [[String: Any]]] = [:]
     
-    /// 模拟延迟（毫秒）
-    var simulatedDelay: Int = 0
+    /// In-memory storage for indexes
+    private var indexes: [String: [String]] = [:]
     
-    /// 模拟错误消息
-    var errorMessage: String = "模拟错误"
+    /// Current transaction state
+    private var inTransaction = false
     
-    // MARK: - 内部状态
+    /// Transaction log
+    private var transactionLog: [(String, [[String: Any]])] = []
     
-    /// 存储模拟数据
-    private var mockData: [String: Any] = [:]
+    // MARK: - Initialization
     
-    /// 存储模拟表结构
-    private var mockTables: [String: [String: String]] = [:]
-    
-    /// 存储模拟索引
-    private var mockIndexes: [String: [String]] = [:]
-    
-    // MARK: - 初始化方法
-    
-    /// 创建模拟数据库服务实例
-    init() {
-        setupDefaultMockData()
+    /// Initialize with configuration
+    init(configuration: CuttDBServiceConfiguration) {
+        self.configuration = configuration
     }
     
-    /// 设置默认的模拟数据
-    private func setupDefaultMockData() {
-        // 设置默认表结构
-        mockTables["users"] = [
-            "id": "INTEGER",
-            "name": "TEXT",
-            "email": "TEXT",
-            "created_at": "TEXT"
-        ]
-        
-        // 设置默认索引
-        mockIndexes["users"] = ["email"]
-        
-        // 设置默认数据
-        mockData["users"] = [
-            [
-                "id": 1,
-                "name": "Test User",
-                "email": "test@example.com",
-                "created_at": "2024-03-20"
-            ]
-        ]
-    }
+    // MARK: - CuttDBService Protocol Implementation
     
-    // MARK: - 公共方法
-    
-    /// 执行SQL查询
-    /// - Parameters:
-    ///   - sql: SQL语句
-    ///   - parameters: 参数
-    /// - Returns: 查询结果
-    func executeQuery(sql: String, parameters: [Any] = []) -> [[String: Any]]? {
-        if shouldSimulateError {
-            return nil
-        }
-        
-        // 模拟查询延迟
-        if simulatedDelay > 0 {
-            Thread.sleep(forTimeInterval: TimeInterval(simulatedDelay) / 1000.0)
-        }
-        
-        // 根据SQL类型返回不同的模拟数据
+    /// Execute SQL query
+    func query(sql: String, parameters: [Any]?) -> [[String: Any]] {
+        // Simple SQL parsing for testing
         if sql.lowercased().contains("select") {
-            return mockData["users"] as? [[String: Any]]
+            if sql.lowercased().contains("count") {
+                return [["count": tables.values.first?.count ?? 0]]
+            }
+            return tables.values.first ?? []
         }
-        
         return []
     }
     
-    /// 执行SQL更新
-    /// - Parameters:
-    ///   - sql: SQL语句
-    ///   - parameters: 参数
-    /// - Returns: 是否成功
-    func executeUpdate(sql: String, parameters: [Any] = []) -> Bool {
-        if shouldSimulateError {
+    /// Execute SQL command
+    func execute(sql: String, parameters: [Any]?) -> Int {
+        // Simple SQL parsing for testing
+        if sql.lowercased().contains("insert") {
+            return 1
+        } else if sql.lowercased().contains("update") {
+            return 1
+        } else if sql.lowercased().contains("delete") {
+            return 1
+        }
+        return 0
+    }
+    
+    /// Begin transaction
+    func beginTransaction() {
+        inTransaction = true
+        transactionLog.removeAll()
+    }
+    
+    /// Commit transaction
+    func commit() {
+        inTransaction = false
+        transactionLog.removeAll()
+    }
+    
+    /// Rollback transaction
+    func rollback() {
+        // Restore table states from transaction log
+        for (table, data) in transactionLog {
+            tables[table] = data
+        }
+        
+        inTransaction = false
+        transactionLog.removeAll()
+    }
+    
+    /// Create table
+    func createTable(name: String, columns: [String: String]) -> Bool {
+        guard !tables.keys.contains(name) else {
             return false
         }
         
-        // 模拟更新延迟
-        if simulatedDelay > 0 {
-            Thread.sleep(forTimeInterval: TimeInterval(simulatedDelay) / 1000.0)
+        tables[name] = []
+        indexes[name] = []
+        return true
+    }
+    
+    /// Drop table
+    func dropTable(name: String) -> Bool {
+        guard tables.keys.contains(name) else {
+            return false
         }
         
+        tables.removeValue(forKey: name)
+        indexes.removeValue(forKey: name)
         return true
     }
     
-    /// 获取表结构
-    /// - Parameter tableName: 表名
-    /// - Returns: 表结构
-    func getTableSchema(tableName: String) -> [String: String]? {
-        return mockTables[tableName]
+    /// Check if table exists
+    func tableExists(name: String) -> Bool {
+        return tables.keys.contains(name)
     }
     
-    /// 获取表索引
-    /// - Parameter tableName: 表名
-    /// - Returns: 索引列表
-    func getTableIndexes(tableName: String) -> [String]? {
-        return mockIndexes[tableName]
+    /// Get table schema
+    func getTableSchema(name: String) -> [String: String] {
+        guard let tableData = tables[name], let firstRow = tableData.first else {
+            return [:]
+        }
+        
+        // Create schema dictionary directly from the first row
+        var schema: [String: String] = [:]
+        for (key, _) in firstRow {
+            schema[key] = "TEXT"
+        }
+        return schema
     }
     
-    // MARK: - 测试辅助方法
-    
-    /// 重置模拟数据
-    func reset() {
-        mockData.removeAll()
-        mockTables.removeAll()
-        mockIndexes.removeAll()
-        setupDefaultMockData()
+    /// Set mock data
+    func setMockData(for table: String, data: [[String: Any]]) {
+        tables[table] = data
     }
     
-    /// 设置模拟数据
-    /// - Parameters:
-    ///   - tableName: 表名
-    ///   - data: 数据
-    func setMockData(tableName: String, data: [[String: Any]]) {
-        mockData[tableName] = data
+    /// Get mock data
+    func getMockData(for table: String) -> [[String: Any]] {
+        return tables[table] ?? []
     }
     
-    /// 设置模拟表结构
-    /// - Parameters:
-    ///   - tableName: 表名
-    ///   - schema: 表结构
-    func setMockTableSchema(tableName: String, schema: [String: String]) {
-        mockTables[tableName] = schema
+    // MARK: - Table Operations
+    
+    /// List all tables
+    func listTables() throws -> [String] {
+        return Array(tables.keys)
     }
     
-    /// 设置模拟索引
-    /// - Parameters:
-    ///   - tableName: 表名
-    ///   - indexes: 索引列表
-    func setMockIndexes(tableName: String, indexes: [String]) {
-        mockIndexes[tableName] = indexes
+    // MARK: - Data Operations
+    
+    /// Insert data into a table
+    func insert(table: String, data: [String: Any]) throws {
+        guard var tableData = tables[table] else {
+            throw CuttDBError.tableNotFound(table)
+        }
+        
+        // Validate required columns
+        let requiredColumns = Set(tableData.first?.keys ?? [])
+        let dataColumns = Set(data.keys)
+        
+        guard requiredColumns.isSubset(of: dataColumns) else {
+            throw CuttDBError.invalidData("Missing required columns")
+        }
+        
+        if inTransaction {
+            transactionLog.append((table, tableData))
+        }
+        
+        tableData.append(data)
+        tables[table] = tableData
     }
     
-    // MARK: - Table Management
-    /// 检查表是否存在
-    /// - Parameter tableName: 表名
-    /// - Returns: 是否存在
-    func shouldTableExist(_ tableName: String) -> Bool {
-        return mockTables.contains(where: { $0.key == tableName })
-    }
-    
-    /// 检查索引是否存在
-    /// - Parameters:
-    ///   - tableName: 表名
-    ///   - indexName: 索引名
-    /// - Returns: 是否存在
-    func shouldIndexExist(_ tableName: String, _ indexName: String) -> Bool {
-        return mockIndexes[tableName]?.contains(where: { $0 == indexName }) ?? false
-    }
-    
-    /// 获取表结构
-    /// - Parameter tableName: 表名
-    /// - Returns: 表结构
-    func getTableStructure(_ tableName: String) -> [String: String] {
-        return mockTables[tableName] ?? [:]
-    }
-    
-    /// 获取索引定义
-    /// - Parameter tableName: 表名
-    /// - Returns: 索引定义
-    func getIndexDefinitions(_ tableName: String) -> [String: String] {
-        return mockIndexes[tableName]?.reduce([:]) { $0.merging($1.reduce([:]) { $0.merging([$1: ""], uniquingKeysWith: { $1 }) }) } ?? [:]
-    }
-    
-    /// 获取子表结构
-    /// - Parameters:
-    ///   - parentTable: 父表名
-    ///   - subTable: 子表名
-    /// - Returns: 子表结构
-    func getSubTableStructure(_ parentTable: String, _ subTable: String) -> [String: String] {
-        return mockTables["\(parentTable)_\(subTable)"] ?? [:]
-    }
-    
-    /// 获取表定义
-    /// - Parameter tableName: 表名
-    /// - Returns: 表定义
-    func getTableDefinition(_ tableName: String) -> [String: Any] {
-        return mockData[tableName] as? [String: Any] ?? [:]
-    }
-    
-    // MARK: - Response Management
-    /// 恢复最近一次响应数据
-    /// - Parameters:
-    ///   - api: 接口字符串
-    ///   - method: 方法字符串
-    /// - Returns: 最近一次响应数据
-    func restoreLastResponse(api: String, method: String) -> [String: Any]? {
-        let tableName = "\(api)_\(method)"
-        return mockData[tableName] as? [String: Any]
-    }
-    
-    /// 恢复子表响应数据
-    /// - Parameters:
-    ///   - api: 接口字符串
-    ///   - method: 方法字符串
-    ///   - property: 属性名
-    /// - Returns: 子表响应数据
-    func restoreSubTableResponse(api: String, method: String, property: String) -> [[String: Any]] {
-        let tableName = "\(api)_\(method)_\(property)"
-        return mockData[tableName] as? [[String: Any]] ?? []
-    }
-    
-    // MARK: - List Properties
-    /// 处理列表属性
-    /// - Parameters:
-    ///   - tableName: 表名
-    ///   - listProperties: 列表属性配置
-    ///   - dbService: 数据库服务实例
-    /// - Returns: 是否成功
-    func handleListProperties(tableName: String, listProperties: [String: [String: String]], dbService: CuttDBService) -> Bool {
-        for (property, config) in listProperties {
-            let subTableName = "\(tableName)_\(property)"
-            if !dbService.createSubTable(parentTable: tableName, subTable: subTableName, columns: config) {
-                return false
+    /// Update data in a table
+    func update(table: String, data: [String: Any], where condition: String) throws {
+        guard var tableData = tables[table] else {
+            throw CuttDBError.tableNotFound(table)
+        }
+        
+        if inTransaction {
+            transactionLog.append((table, tableData))
+        }
+        
+        // Simple condition parsing for testing
+        let conditions = condition.components(separatedBy: " AND ")
+        for (index, row) in tableData.enumerated() {
+            var matches = true
+            for condition in conditions {
+                let parts = condition.components(separatedBy: "=")
+                guard parts.count == 2 else { continue }
+                
+                let key = parts[0].trimmingCharacters(in: .whitespaces)
+                let value = parts[1].trimmingCharacters(in: .whitespaces)
+                
+                if let rowValue = row[key] {
+                    if String(describing: rowValue) != value {
+                        matches = false
+                        break
+                    }
+                } else {
+                    matches = false
+                    break
+                }
+            }
+            
+            if matches {
+                // Merge the new data with existing row
+                var updatedRow = row
+                for (key, value) in data {
+                    updatedRow[key] = value
+                }
+                tableData[index] = updatedRow
             }
         }
+        
+        tables[table] = tableData
+    }
+    
+    /// Delete data from a table
+    func delete(table: String, where condition: String) throws {
+        guard var tableData = tables[table] else {
+            throw CuttDBError.tableNotFound(table)
+        }
+        
+        if inTransaction {
+            transactionLog.append((table, tableData))
+        }
+        
+        // Simple condition parsing for testing
+        let conditions = condition.components(separatedBy: " AND ")
+        tableData.removeAll { row in
+            var matches = true
+            for condition in conditions {
+                let parts = condition.components(separatedBy: "=")
+                guard parts.count == 2 else { continue }
+                
+                let key = parts[0].trimmingCharacters(in: .whitespaces)
+                let value = parts[1].trimmingCharacters(in: .whitespaces)
+                
+                if let rowValue = row[key] {
+                    if String(describing: rowValue) != value {
+                        matches = false
+                        break
+                    }
+                } else {
+                    matches = false
+                    break
+                }
+            }
+            return matches
+        }
+        
+        tables[table] = tableData
+    }
+    
+    /// Query data from a table
+    func query(table: String, where condition: String? = nil) throws -> [[String: Any]] {
+        guard let tableData = tables[table] else {
+            throw CuttDBError.tableNotFound(table)
+        }
+        
+        guard let condition = condition else {
+            return tableData
+        }
+        
+        // Simple condition parsing for testing
+        let conditions = condition.components(separatedBy: " AND ")
+        return tableData.filter { row in
+            var matches = true
+            for condition in conditions {
+                let parts = condition.components(separatedBy: "=")
+                guard parts.count == 2 else { continue }
+                
+                let key = parts[0].trimmingCharacters(in: .whitespaces)
+                let value = parts[1].trimmingCharacters(in: .whitespaces)
+                
+                if let rowValue = row[key] {
+                    if String(describing: rowValue) != value {
+                        matches = false
+                        break
+                    }
+                } else {
+                    matches = false
+                    break
+                }
+            }
+            return matches
+        }
+    }
+    
+    // MARK: - Index Operations
+    
+    /// Create an index
+    func createIndex(on table: String, columns: [String]) -> Bool {
+        guard tables.keys.contains(table) else {
+            return false
+        }
+        
+        guard var tableIndexes = indexes[table] else {
+            return false
+        }
+        
+        let indexName = columns.joined(separator: "_")
+        guard !tableIndexes.contains(indexName) else {
+            return false
+        }
+        
+        tableIndexes.append(indexName)
+        indexes[table] = tableIndexes
         return true
     }
     
-    /// 处理列表关系
-    /// - Parameters:
-    ///   - tableName: 表名
-    ///   - relationships: 关系配置
-    ///   - dbService: 数据库服务实例
-    /// - Returns: 是否成功
-    func handleListRelationships(tableName: String, relationships: [String: String], dbService: CuttDBService) -> Bool {
-        for (property, foreignKey) in relationships {
-            let subTableName = "\(tableName)_\(property)"
-            if !dbService.createIndexIfNeeded(tableName: subTableName, indexName: "fk_\(foreignKey)", columns: [foreignKey]) {
-                return false
-            }
-        }
-        return true
+    /// List indexes for a table
+    func listIndexes(for table: String) -> [String] {
+        return indexes[table] ?? []
+    }
+    
+    // MARK: - Utility Methods
+    
+    /// Get the current database version
+    func getVersion() throws -> Int {
+        return 1
+    }
+    
+    /// Upgrade the database to a new version
+    func upgrade(from oldVersion: Int, to newVersion: Int) throws {
+        // Mock implementation
+    }
+    
+    /// Close the database connection
+    func close() {
+        tables.removeAll()
+        indexes.removeAll()
+        transactionLog.removeAll()
+        inTransaction = false
     }
 } 

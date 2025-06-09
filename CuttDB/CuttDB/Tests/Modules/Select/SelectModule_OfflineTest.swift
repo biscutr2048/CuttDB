@@ -1,118 +1,137 @@
-import Foundation
 import XCTest
+@testable import CuttDB
 
-class SelectModule_OfflineTest: XCTestCase {
-    private var db: CuttDB!
-    private var mockService: MockCuttDBService!
+/// Test class for offline query operations
+final class SelectModule_OfflineTest: CuttDBTestCase {
+    /// Test data structure
+    struct TestData {
+        static let table = "test_table"
+        static let columns = [
+            "id": "INTEGER PRIMARY KEY",
+            "name": "TEXT",
+            "age": "INTEGER",
+            "created_at": "INTEGER"
+        ]
+        
+        static let records: [[String: Any]] = (1...100).map { i in
+            [
+                "id": i,
+                "name": "User \(i)",
+                "age": 20 + (i % 50),
+                "created_at": Date().timeIntervalSince1970 + Double(i)
+            ]
+        }
+    }
     
     override func setUp() {
         super.setUp()
-        let config = CuttDBServiceConfiguration(dbPath: ":memory:")
-        mockService = MockCuttDBService()
-        db = CuttDB(configuration: config)
+        
+        // Create test table
+        try? db.ensureTableExists(
+            tableName: TestData.table,
+            columns: TestData.columns
+        )
+        
+        // Insert test data
+        for record in TestData.records {
+            _ = try? db.insertOrUpdate(
+                table: TestData.table,
+                record: record
+            )
+        }
     }
     
     override func tearDown() {
-        db = nil
-        mockService = nil
+        try? db.dropTable(name: TestData.table)
         super.tearDown()
     }
     
-    func testOfflineQuery() {
-        // 准备测试数据
-        let tableName = "test_table"
-        let columns = [
-            "id": "INTEGER PRIMARY KEY",
-            "name": "TEXT",
-            "email": "TEXT",
-            "last_updated": "TEXT"
-        ]
+    // MARK: - Test Methods
+    
+    /// Test basic offline query
+    func testBasicOfflineQuery() {
+        // Arrange
+        let table = TestData.table
         
-        // 创建表
-        XCTAssertTrue(db.ensureTableExists(tableName: tableName, columns: columns))
+        // Act
+        let results: [[String: Any]] = db.queryList(from: table)
         
-        // 插入测试数据
-        let testData = [
-            ["id": "1", "name": "John", "email": "john@example.com", "last_updated": "2024-01-01"],
-            ["id": "2", "name": "Jane", "email": "jane@example.com", "last_updated": "2024-01-02"]
-        ]
-        
-        for data in testData {
-            XCTAssertTrue(db.insertObject(data))
-        }
-        
-        // 测试离线查询
-        let results = db.queryObjects([String: Any].self, whereClause: nil)
-        XCTAssertEqual(results.count, 2, "Should return all records")
-        
-        // 验证数据完整性
-        let firstRecord = results.first
-        XCTAssertEqual(firstRecord?["name"] as? String, "John", "Should have correct name")
-        XCTAssertEqual(firstRecord?["email"] as? String, "john@example.com", "Should have correct email")
+        // Assert
+        XCTAssertEqual(results.count, TestData.records.count)
+        XCTAssertEqual(results.first?["name"] as? String, "User 1")
     }
     
-    func testOfflineQueryWithFilter() {
-        // 准备测试数据
-        let tableName = "test_table"
-        let columns = [
-            "id": "INTEGER PRIMARY KEY",
-            "name": "TEXT",
-            "email": "TEXT",
-            "last_updated": "TEXT"
-        ]
+    /// Test offline query with where clause
+    func testOfflineQueryWithWhere() {
+        // Arrange
+        let table = TestData.table
+        let whereClause = "age > 30"
         
-        // 创建表
-        XCTAssertTrue(db.ensureTableExists(tableName: tableName, columns: columns))
+        // Act
+        let results: [[String: Any]] = db.queryList(from: table, where: whereClause)
         
-        // 插入测试数据
-        let testData = [
-            ["id": "1", "name": "John", "email": "john@example.com", "last_updated": "2024-01-01"],
-            ["id": "2", "name": "Jane", "email": "jane@example.com", "last_updated": "2024-01-02"]
-        ]
-        
-        for data in testData {
-            XCTAssertTrue(db.insertObject(data))
+        // Assert
+        XCTAssertFalse(results.isEmpty)
+        for result in results {
+            XCTAssertGreaterThan(result["age"] as? Int ?? 0, 30)
         }
-        
-        // 测试带过滤的离线查询
-        let results = db.queryObjects([String: Any].self, whereClause: "name = 'John'")
-        XCTAssertEqual(results.count, 1, "Should return only John's record")
-        
-        // 验证数据完整性
-        let firstRecord = results.first
-        XCTAssertEqual(firstRecord?["name"] as? String, "John", "Should have correct name")
-        XCTAssertEqual(firstRecord?["email"] as? String, "john@example.com", "Should have correct email")
     }
     
-    func testOfflineQueryWithOrder() {
-        // 准备测试数据
-        let tableName = "test_table"
-        let columns = [
-            "id": "INTEGER PRIMARY KEY",
-            "name": "TEXT",
-            "email": "TEXT",
-            "last_updated": "TEXT"
-        ]
+    /// Test offline query with order by
+    func testOfflineQueryWithOrderBy() {
+        // Arrange
+        let table = TestData.table
+        let orderBy = "age DESC"
         
-        // 创建表
-        XCTAssertTrue(db.ensureTableExists(tableName: tableName, columns: columns))
+        // Act
+        let results: [[String: Any]] = db.queryList(from: table, orderBy: orderBy)
         
-        // 插入测试数据
-        let testData = [
-            ["id": "1", "name": "John", "email": "john@example.com", "last_updated": "2024-01-01"],
-            ["id": "2", "name": "Jane", "email": "jane@example.com", "last_updated": "2024-01-02"]
-        ]
+        // Assert
+        XCTAssertEqual(results.count, TestData.records.count)
+        let ages = results.compactMap { $0["age"] as? Int }
+        XCTAssertEqual(ages, ages.sorted(by: >))
+    }
+    
+    /// Test offline query with limit
+    func testOfflineQueryWithLimit() {
+        // Arrange
+        let table = TestData.table
+        let limit = 10
         
-        for data in testData {
-            XCTAssertTrue(db.insertObject(data))
+        // Act
+        let results: [[String: Any]] = db.queryList(from: table, limit: limit)
+        
+        // Assert
+        XCTAssertEqual(results.count, limit)
+    }
+    
+    /// Test offline query with complex conditions
+    func testOfflineQueryWithComplexConditions() {
+        // Arrange
+        let table = TestData.table
+        let whereClause = "age > 30 AND name LIKE 'User%'"
+        let orderBy = "age DESC"
+        let limit = 5
+        
+        // Act
+        let results: [[String: Any]] = db.queryList(from: table, where: whereClause, orderBy: orderBy, limit: limit)
+        
+        // Assert
+        XCTAssertLessThanOrEqual(results.count, limit)
+        for result in results {
+            XCTAssertGreaterThan(result["age"] as? Int ?? 0, 30)
+            XCTAssertTrue((result["name"] as? String ?? "").hasPrefix("User"))
         }
+    }
+    
+    /// Test performance
+    func testPerformance() {
+        // Arrange
+        let table = TestData.table
         
-        // 测试带排序的离线查询
-        let results = db.queryObjects([String: Any].self, whereClause: nil, orderBy: "last_updated DESC")
-        XCTAssertEqual(results.count, 2, "Should return all records")
-        
-        // 验证排序
-        let firstRecord = results.first
-        XCTAssertEqual(firstRecord?["name"] as? String, "Jane", "Should be sorted by last_updated DESC")
+        // Act & Assert
+        measure {
+            _ = db.queryList(from: table)
+        }
     }
 } 

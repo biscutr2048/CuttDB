@@ -10,143 +10,116 @@ import XCTest
 
 /// Test class for aging functionality
 final class DeleteModule_AgingTest: CuttDBTestCase {
+    /// Database instance for testing
+    private var db: CuttDB!
+    
     /// Test data structure
-    struct TestData {
-        static let table = "test_table"
-        static let columns = [
-            "id": "INTEGER PRIMARY KEY",
-            "name": "TEXT",
-            "age": "INTEGER",
-            "created_at": "INTEGER"
-        ]
-        static let record = [
-            "id": 1,
-            "name": "Test",
-            "age": 25,
-            "created_at": Date().timeIntervalSince1970
-        ] as [String: Any]
+    private struct TestData: Codable {
+        let id: String
+        let name: String
+        let age: Int
+        let createdAt: Date
     }
     
     override func setUp() {
         super.setUp()
+        let config = CuttDBServiceConfiguration(dbPath: ":memory:")
+        db = CuttDB(configuration: config)
+        
+        // Create test table
+        try! db.createTable(name: "test_table", columns: ["id", "name", "age", "created_at"])
     }
     
     override func tearDown() {
-        try? db.ensureTableExists(tableName: TestData.table, columns: TestData.columns)
+        try! db.dropTable(name: "test_table")
+        db = nil
         super.tearDown()
     }
     
-    // MARK: - Test Methods
-    
-    /// Test basic aging
+    /// Test basic aging functionality
     func testBasicAging() throws {
-        // 创建测试表
-        try db.ensureTableExists(
-            tableName: TestData.table,
-            columns: TestData.columns
-        )
+        // Insert test data
+        let now = Date()
+        let oldDate = now.addingTimeInterval(-86400) // 1 day ago
         
-        // 插入测试数据
-        let result = try db.insertObject(TestData.record)
+        let data1 = TestData(id: "1", name: "Test1", age: 20, createdAt: now)
+        let data2 = TestData(id: "2", name: "Test2", age: 30, createdAt: oldDate)
         
-        // 验证响应
-        XCTAssertNotNil(result)
-        XCTAssertTrue(result)
+        try db.insert(table: "test_table", data: data1)
+        try db.insert(table: "test_table", data: data2)
         
-        // 验证数据
-        let records: [[String: Any]] = db.queryList(from: TestData.table, where: "id = ?", parameters: [1])
+        // Delete old records
+        try db.deleteAging(table: "test_table", column: "created_at", age: 43200) // 12 hours
         
-        XCTAssertNotNil(records)
-        XCTAssertEqual(records.count, 1)
-        XCTAssertEqual(records[0]["id"] as? Int, TestData.record["id"] as? Int)
-        XCTAssertEqual(records[0]["name"] as? String, TestData.record["name"] as? String)
-        XCTAssertEqual(records[0]["age"] as? Int, TestData.record["age"] as? Int)
+        // Verify results
+        let result = try db.queryList(from: "test_table")
+        XCTAssertEqual(result.count, 1)
+        XCTAssertEqual(result[0]["id"] as? String, "1")
     }
     
-    /// Test aging with old records
-    func testAgingWithOldRecords() throws {
-        // 创建测试表
-        try db.ensureTableExists(
-            tableName: TestData.table,
-            columns: TestData.columns
-        )
+    /// Test aging with custom condition
+    func testAgingWithCondition() throws {
+        // Insert test data
+        let now = Date()
+        let oldDate = now.addingTimeInterval(-86400) // 1 day ago
         
-        // 插入旧数据
-        let oldRecord = [
-            "id": 1,
-            "name": "Old Record",
-            "age": 25,
-            "created_at": Date().timeIntervalSince1970 - 86400 // 1天前
-        ] as [String: Any]
+        let data1 = TestData(id: "1", name: "Test1", age: 20, createdAt: now)
+        let data2 = TestData(id: "2", name: "Test2", age: 30, createdAt: oldDate)
         
-        let result = try db.insertObject(oldRecord)
+        try db.insert(table: "test_table", data: data1)
+        try db.insert(table: "test_table", data: data2)
         
-        // 验证响应
-        XCTAssertNotNil(result)
-        XCTAssertTrue(result)
+        // Delete old records with condition
+        try db.deleteAging(table: "test_table", column: "created_at", age: 43200, where: "age > 25")
         
-        // 验证数据
-        let records: [[String: Any]] = db.queryList(from: TestData.table, where: "id = ?", parameters: [1])
-        
-        XCTAssertNotNil(records)
-        XCTAssertEqual(records.count, 1)
-        XCTAssertEqual(records[0]["id"] as? Int, oldRecord["id"] as? Int)
-        XCTAssertEqual(records[0]["name"] as? String, oldRecord["name"] as? String)
-        XCTAssertEqual(records[0]["age"] as? Int, oldRecord["age"] as? Int)
+        // Verify results
+        let result = try db.queryList(from: "test_table")
+        XCTAssertEqual(result.count, 1)
+        XCTAssertEqual(result[0]["id"] as? String, "1")
     }
     
-    /// Test aging with mixed records
-    func testAgingWithMixedRecords() throws {
-        // 创建测试表
-        try db.ensureTableExists(
-            tableName: TestData.table,
-            columns: TestData.columns
-        )
+    /// Test aging with multiple conditions
+    func testAgingWithMultipleConditions() throws {
+        // Insert test data
+        let now = Date()
+        let oldDate = now.addingTimeInterval(-86400) // 1 day ago
         
-        // 插入新旧数据
-        let oldRecord = [
-            "id": 1,
-            "name": "Old Record",
-            "age": 25,
-            "created_at": Date().timeIntervalSince1970 - 86400 // 1天前
-        ] as [String: Any]
+        let data1 = TestData(id: "1", name: "Test1", age: 20, createdAt: now)
+        let data2 = TestData(id: "2", name: "Test2", age: 30, createdAt: oldDate)
+        let data3 = TestData(id: "3", name: "Test3", age: 40, createdAt: oldDate)
         
-        let newRecord = [
-            "id": 2,
-            "name": "New Record",
-            "age": 30,
-            "created_at": Date().timeIntervalSince1970
-        ] as [String: Any]
+        try db.insert(table: "test_table", data: data1)
+        try db.insert(table: "test_table", data: data2)
+        try db.insert(table: "test_table", data: data3)
         
-        let result1 = try db.insertObject(oldRecord)
-        let result2 = try db.insertObject(newRecord)
+        // Delete old records with multiple conditions
+        try db.deleteAging(table: "test_table", column: "created_at", age: 43200, where: "age > 25 AND name LIKE 'Test%'")
         
-        // 验证响应
-        XCTAssertNotNil(result1)
-        XCTAssertTrue(result1)
-        XCTAssertNotNil(result2)
-        XCTAssertTrue(result2)
-        
-        // 验证数据
-        let records: [[String: Any]] = db.queryList(from: TestData.table)
-        
-        XCTAssertNotNil(records)
-        XCTAssertEqual(records.count, 2)
-        XCTAssertEqual(records[0]["id"] as? Int, oldRecord["id"] as? Int)
-        XCTAssertEqual(records[1]["id"] as? Int, newRecord["id"] as? Int)
+        // Verify results
+        let result = try db.queryList(from: "test_table")
+        XCTAssertEqual(result.count, 1)
+        XCTAssertEqual(result[0]["id"] as? String, "1")
     }
     
-    /// Test performance
-    func testPerformance() throws {
-        // 创建测试表
-        try db.ensureTableExists(
-            tableName: TestData.table,
-            columns: TestData.columns
-        )
+    /// Test aging with invalid parameters
+    func testAgingWithInvalidParameters() throws {
+        // Test with invalid table name
+        XCTAssertThrowsError(try db.deleteAging(table: "invalid_table", column: "created_at", age: 43200))
         
-        measure {
-            // 执行插入操作
-            try? db.insertObject(TestData.record)
-        }
+        // Test with invalid column name
+        XCTAssertThrowsError(try db.deleteAging(table: "test_table", column: "invalid_column", age: 43200))
+        
+        // Test with invalid age value
+        XCTAssertThrowsError(try db.deleteAging(table: "test_table", column: "created_at", age: -1))
+    }
+    
+    /// Test aging with empty table
+    func testAgingWithEmptyTable() throws {
+        // Delete from empty table
+        try db.deleteAging(table: "test_table", column: "created_at", age: 43200)
+        
+        // Verify table is still empty
+        let result = try db.queryList(from: "test_table")
+        XCTAssertTrue(result.isEmpty)
     }
 } 

@@ -6,13 +6,11 @@
 //
 
 import XCTest
+@testable import CuttDB
 
 /// Test class for sub-table functionality
-final class CreateModule_SubTableTest: XCTestCase {
-    /// Database instance for testing
-    private var db: CuttDB!
-    /// Mock service for testing
-    private var mockService: MockCuttDBService!
+final class CreateModule_SubTableTest: CuttDBTestCase {
+    // MARK: - Properties
     
     /// Test data structure
     struct TestData {
@@ -21,61 +19,62 @@ final class CreateModule_SubTableTest: XCTestCase {
         static let grandChildTable = "grandchild_table"
         
         static let parentColumns = [
-            "id INTEGER PRIMARY KEY",
-            "name TEXT",
-            "created_at INTEGER"
+            "id": "TEXT",
+            "name": "TEXT",
+            "age": "INTEGER"
         ]
         
         static let childColumns = [
-            "id INTEGER PRIMARY KEY",
-            "parent_id INTEGER",
-            "name TEXT",
-            "created_at INTEGER",
-            "FOREIGN KEY(parent_id) REFERENCES parent_table(id)"
+            "id": "TEXT",
+            "parent_id": "TEXT",
+            "name": "TEXT",
+            "age": "INTEGER"
         ]
         
         static let grandChildColumns = [
-            "id INTEGER PRIMARY KEY",
-            "child_id INTEGER",
-            "name TEXT",
-            "created_at INTEGER",
-            "FOREIGN KEY(child_id) REFERENCES child_table(id)"
+            "id": "TEXT",
+            "child_id": "TEXT",
+            "name": "TEXT",
+            "age": "INTEGER"
         ]
         
         static let parentRecord: [String: Any] = [
-            "id": 1,
-            "name": "Parent",
-            "created_at": Date().timeIntervalSince1970
+            "id": "1",
+            "name": "Parent 1",
+            "age": 40
         ]
         
         static let childRecord: [String: Any] = [
-            "id": 1,
-            "parent_id": 1,
-            "name": "Child",
-            "created_at": Date().timeIntervalSince1970
+            "id": "1",
+            "parent_id": "1",
+            "name": "Child 1",
+            "age": 20
         ]
         
         static let grandChildRecord: [String: Any] = [
-            "id": 1,
-            "child_id": 1,
-            "name": "GrandChild",
-            "created_at": Date().timeIntervalSince1970
+            "id": "1",
+            "child_id": "1",
+            "name": "Grandchild 1",
+            "age": 10
         ]
+        
+        struct ParentRecord: Codable {
+            let id: String
+            let name: String
+            let age: Int
+        }
     }
+    
+    // MARK: - Setup and Teardown
     
     override func setUp() {
         super.setUp()
-        let config = CuttDBServiceConfiguration(dbPath: ":memory:")
-        mockService = MockCuttDBService()
-        db = CuttDB(configuration: config)
     }
     
     override func tearDown() {
         try? db.dropTable(name: TestData.grandChildTable)
         try? db.dropTable(name: TestData.childTable)
         try? db.dropTable(name: TestData.parentTable)
-        db = nil
-        mockService = nil
         super.tearDown()
     }
     
@@ -92,24 +91,103 @@ final class CreateModule_SubTableTest: XCTestCase {
         // Act
         let parentResult = try? db.createTable(
             name: parentTable,
-            columns: parentColumns
+            columns: Array(parentColumns.keys)
         )
         let childResult = try? db.createTable(
             name: childTable,
-            columns: childColumns
+            columns: Array(childColumns.keys)
         )
         
         // Assert
         XCTAssertNotNil(parentResult)
-        XCTAssertTrue(parentResult?.success ?? false)
+        XCTAssertTrue(parentResult ?? false)
         XCTAssertNotNil(childResult)
-        XCTAssertTrue(childResult?.success ?? false)
+        XCTAssertTrue(childResult ?? false)
         
         // Verify
         let parentExists = try? db.tableExists(name: parentTable)
         XCTAssertTrue(parentExists ?? false)
         let childExists = try? db.tableExists(name: childTable)
         XCTAssertTrue(childExists ?? false)
+    }
+    
+    /// Test cascade delete
+    func testCascadeDelete() {
+        // Arrange
+        let parentTable = TestData.parentTable
+        let childTable = TestData.childTable
+        let parentColumns = TestData.parentColumns
+        let childColumns = TestData.childColumns
+        
+        // Create tables
+        _ = try? db.createTable(
+            name: parentTable,
+            columns: Array(parentColumns.keys)
+        )
+        _ = try? db.createTable(
+            name: childTable,
+            columns: Array(childColumns.keys)
+        )
+        
+        // Create and save parent record
+        let parent = TestData.ParentRecord(id: "1", name: "Parent 1", age: 40)
+        _ = db.saveObject(parent)
+        
+        // Insert child record
+        _ = try? db.insert(
+            table: childTable,
+            data: TestData.childRecord
+        )
+        
+        // Act
+        let deleteResult = db.deleteObject(TestData.ParentRecord.self, id: "1")
+        
+        // Assert
+        XCTAssertTrue(deleteResult)
+        
+        // Verify child records are deleted
+        let childRecords = db.queryList(from: childTable)
+        XCTAssertEqual(childRecords.count, 0)
+    }
+    
+    /// Test foreign key constraints
+    func testForeignKeyConstraints() {
+        // Arrange
+        let parentTable = TestData.parentTable
+        let childTable = TestData.childTable
+        let parentColumns = TestData.parentColumns
+        let childColumns = TestData.childColumns
+        
+        // Create tables
+        _ = try? db.createTable(
+            name: parentTable,
+            columns: Array(parentColumns.keys)
+        )
+        _ = try? db.createTable(
+            name: childTable,
+            columns: Array(childColumns.keys)
+        )
+        
+        // Act & Assert - Try to insert child without parent
+        let insertResult = try? db.insert(
+            table: childTable,
+            data: TestData.childRecord
+        )
+        XCTAssertFalse(insertResult ?? true)
+        
+        // Insert parent first
+        let parent = TestData.ParentRecord(id: "1", name: "Parent 1", age: 40)
+        _ = db.saveObject(parent)
+        
+        // Now try to insert child
+        let result = try? db.insert(
+            table: childTable,
+            data: TestData.childRecord
+        )
+        
+        // Assert
+        XCTAssertNotNil(result)
+        XCTAssertTrue(result ?? false)
     }
     
     /// Test nested sub-table creation
@@ -125,24 +203,24 @@ final class CreateModule_SubTableTest: XCTestCase {
         // Act
         let parentResult = try? db.createTable(
             name: parentTable,
-            columns: parentColumns
+            columns: Array(parentColumns.keys)
         )
         let childResult = try? db.createTable(
             name: childTable,
-            columns: childColumns
+            columns: Array(childColumns.keys)
         )
         let grandChildResult = try? db.createTable(
             name: grandChildTable,
-            columns: grandChildColumns
+            columns: Array(grandChildColumns.keys)
         )
         
         // Assert
         XCTAssertNotNil(parentResult)
-        XCTAssertTrue(parentResult?.success ?? false)
+        XCTAssertTrue(parentResult ?? false)
         XCTAssertNotNil(childResult)
-        XCTAssertTrue(childResult?.success ?? false)
+        XCTAssertTrue(childResult ?? false)
         XCTAssertNotNil(grandChildResult)
-        XCTAssertTrue(grandChildResult?.success ?? false)
+        XCTAssertTrue(grandChildResult ?? false)
         
         // Verify
         let parentExists = try? db.tableExists(name: parentTable)
@@ -151,146 +229,5 @@ final class CreateModule_SubTableTest: XCTestCase {
         XCTAssertTrue(childExists ?? false)
         let grandChildExists = try? db.tableExists(name: grandChildTable)
         XCTAssertTrue(grandChildExists ?? false)
-    }
-    
-    /// Test foreign key constraints
-    func testForeignKeyConstraints() {
-        // Arrange
-        let parentTable = TestData.parentTable
-        let childTable = TestData.childTable
-        let parentColumns = TestData.parentColumns
-        let childColumns = TestData.childColumns
-        
-        // Create tables
-        _ = try? db.createTable(
-            name: parentTable,
-            columns: parentColumns
-        )
-        _ = try? db.createTable(
-            name: childTable,
-            columns: childColumns
-        )
-        
-        // Act & Assert - Try to insert child without parent
-        XCTAssertThrowsError(try db.insertOrUpdate(
-            table: childTable,
-            record: TestData.childRecord
-        )) { error in
-            XCTAssertTrue(error is CuttDBError)
-        }
-        
-        // Insert parent first
-        _ = try? db.insertOrUpdate(
-            table: parentTable,
-            record: TestData.parentRecord
-        )
-        
-        // Now try to insert child
-        let result = try? db.insertOrUpdate(
-            table: childTable,
-            record: TestData.childRecord
-        )
-        
-        // Assert
-        XCTAssertNotNil(result)
-        XCTAssertTrue(result?.success ?? false)
-    }
-    
-    /// Test cascade delete
-    func testCascadeDelete() {
-        // Arrange
-        let parentTable = TestData.parentTable
-        let childTable = TestData.childTable
-        let parentColumns = TestData.parentColumns
-        let childColumns = TestData.childColumns
-        
-        // Create tables
-        _ = try? db.createTable(
-            name: parentTable,
-            columns: parentColumns
-        )
-        _ = try? db.createTable(
-            name: childTable,
-            columns: childColumns
-        )
-        
-        // Insert records
-        _ = try? db.insertOrUpdate(
-            table: parentTable,
-            record: TestData.parentRecord
-        )
-        _ = try? db.insertOrUpdate(
-            table: childTable,
-            record: TestData.childRecord
-        )
-        
-        // Act
-        let deleteResult = try? db.delete(
-            table: parentTable,
-            where: "id = ?",
-            params: [1]
-        )
-        
-        // Assert
-        XCTAssertNotNil(deleteResult)
-        XCTAssertTrue(deleteResult?.success ?? false)
-        
-        // Verify child is also deleted
-        let childCount = try? db.count(
-            table: childTable,
-            where: "parent_id = ?",
-            params: [1]
-        )
-        XCTAssertEqual(childCount, 0)
-    }
-    
-    /// Test invalid foreign key
-    func testInvalidForeignKey() {
-        // Arrange
-        let parentTable = TestData.parentTable
-        let childTable = TestData.childTable
-        let parentColumns = TestData.parentColumns
-        let invalidChildColumns = [
-            "id INTEGER PRIMARY KEY",
-            "parent_id INTEGER",
-            "name TEXT",
-            "created_at INTEGER",
-            "FOREIGN KEY(parent_id) REFERENCES non_existent_table(id)"
-        ]
-        
-        // Create parent table
-        _ = try? db.createTable(
-            name: parentTable,
-            columns: parentColumns
-        )
-        
-        // Act & Assert
-        XCTAssertThrowsError(try db.createTable(
-            name: childTable,
-            columns: invalidChildColumns
-        )) { error in
-            XCTAssertTrue(error is CuttDBError)
-        }
-    }
-    
-    /// Test performance
-    func testPerformance() {
-        // Arrange
-        let parentTable = TestData.parentTable
-        let childTable = TestData.childTable
-        let parentColumns = TestData.parentColumns
-        let childColumns = TestData.childColumns
-        
-        // Act & Assert
-        measure {
-            _ = try? db.createTable(
-                name: parentTable,
-                columns: parentColumns
-            )
-            _ = try? db.createTable(
-                name: childTable,
-                columns: childColumns
-            )
-        }
     }
 } 

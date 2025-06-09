@@ -6,9 +6,10 @@
 //
 
 import XCTest
+@testable import CuttDB
 
 /// Test class for table definition functionality
-class CreateModule_TableDefinitionTest: XCTestCase {
+final class CreateModule_TableDefinitionTest: CuttDBTestCase {
     /// Database instance for testing
     private var db: CuttDB!
     /// Mock service for testing
