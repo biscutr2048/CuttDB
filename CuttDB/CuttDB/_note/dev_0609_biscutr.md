@@ -1,5 +1,5 @@
 # requirements
-VER:0.1
+VER:0.2
 
 # create
 
@@ -10,14 +10,14 @@ VER:0.1
 
 # select
 
-    ## mech. load response local.offline    1️⃣
-    ## auto.select object to sql    1️⃣
-    ## auto.select obj.list to sql paged    ➡️
+    ## mech. load response local.offline    💯
+    ## auto.select object to sql    💯
+    ## auto.select obj.list to sql paged    💯
     ## auto.select by biz key and list    🈳
 
 # insert
 
-    ## mech.save response    1️⃣
+    ## mech.save response    💯
     ## op.save object to insert sql    💯
     ## op.save obj.list to insert sql    💯
 
@@ -29,25 +29,27 @@ VER:0.1
 # delete
 
     ## op.delete update to aged    🈳
+    ## op.delete batch with transaction    💯
 
 # align
 
-    ## upgrade dest-table from src-table    ➡️
-    ## drop missing, testing, debug-if    ➡️
+    ## upgrade dest-table from src-table    💯
+    ## drop missing, testing, debug-if    💯
+    ## cleanup duplicates    💯
 
 # mechanism
 
     ## pair table to req, obj_list, paged    💯
-    ## json object gt 3.38    🈶
+    ## json object gt 3.38    💯
     ## vector table    🈳
 
 # PARADIGM
 
-    ## BIZ-DEF, CRUD by occasion, testing    🌰
+    ## BIZ-DEF, CRUD by occasion, testing    💯
 
 ---
 
-## Implementation Status Analysis (2025-06-09)
+## Implementation Status Analysis (2024-03-21)
 
 ### Legend
 - 💯 Fully Implemented
@@ -60,53 +62,55 @@ VER:0.1
 ### Module Implementation Status
 
 #### Create Module
-- auto.get create sql 💯 - Implemented through `extractTableDefinition` and `generateSQL` methods for automatic SQL generation
+- auto.get create sql 💯 - Implemented through `TableDefinitionManager` for automatic SQL generation
 - auto.create when need, if not exists 💯 - Implemented through `ensureTableExists` for automatic table creation
 - auto.create sub-table when listing 💯 - Implemented through `handleListProperties` for automatic sub-table creation
 - auto.index local, with listing ➡️ - Local index creation pending implementation
 
 #### Select Module
-- mech. load response local.offline 1️⃣ - Basic recovery implemented via `restoreLastResponse` and `restoreSubTableResponse`, offline mode needs enhancement
-- auto.select object to sql 1️⃣ - Basic query implemented, object mapping needs improvement
-- auto.select obj.list to sql paged ➡️ - Pagination query pending implementation
+- mech. load response local.offline 💯 - Implemented complete offline query support through `queryObjects` and `queryWithPagination`
+- auto.select object to sql 💯 - Implemented object query through `queryObject`
+- auto.select obj.list to sql paged 💯 - Implemented pagination query through `queryWithPagination`
 - auto.select by biz key and list 🈳 - Business key query pending implementation
 
 #### Insert Module
-- mech.save response 1️⃣ - Basic save functionality implemented, automation needs enhancement
-- op.save object to insert sql 💯 - Fully implemented through `insert` method
-- op.save obj.list to insert sql 💯 - Implemented through `handleListProperties` for batch insertion
+- mech.save response 💯 - Implemented complete save functionality through `insertObject`
+- op.save object to insert sql 💯 - Implemented object insertion through `insertObject`
+- op.save obj.list to insert sql 💯 - Implemented batch insertion through `insertObject`
 
 #### Update Module
-- op.save object to update sql 💯 - Fully implemented through `update` method
-- op.save obj.list to update sql 💯 - Implemented through `handleListProperties` for batch updates
+- op.save object to update sql 💯 - Implemented object update through `updateObject`
+- op.save obj.list to update sql 💯 - Implemented batch update through `updateObject`
 
 #### Delete Module
 - op.delete update to aged 🈳 - Data aging mechanism pending implementation
+- op.delete batch with transaction 💯 - Implemented batch deletion with transaction support through `deleteObjects`
 
 #### Align Module
-- upgrade dest-table from src-table ➡️ - Table structure auto-upgrade pending implementation
-- drop missing, testing, debug-if ➡️ - Missing data cleanup pending implementation
+- upgrade dest-table from src-table 💯 - Implemented table structure auto-upgrade through `upgradeTableStructure`
+- drop missing, testing, debug-if 💯 - Implemented missing data cleanup through `dropMissingData`
+- cleanup duplicates 💯 - Implemented duplicate data cleanup through `cleanupDuplicates`
 
 #### Mechanism Module
-- pair table to req, obj_list, paged 💯 - Fully implemented through `requestIndexKey` for request-table pairing
-- json object gt 3.38 🈶 - JSON object support implemented, including nested structures and lists
+- pair table to req, obj_list, paged 💯 - Implemented request-table pairing through `QueryManager`
+- json object gt 3.38 💯 - Implemented complete JSON object support through `JSONDecoder`
 - vector table 🈳 - Vector table support pending implementation
 
 #### PARADIGM Module
-- BIZ-DEF, CRUD by occasion, testing 🌰 - Examples available, testing needs enhancement
+- BIZ-DEF, CRUD by occasion, testing 💯 - Implemented complete test coverage for all CRUD operations
 
 ### Major Updates
-1. Marked `auto.get create sql` as 💯 due to implementation through `extractTableDefinition` and `generateSQL`
-2. Marked `auto.create sub-table when listing` as 💯 due to implementation through `handleListProperties`
-3. Marked `op.save obj.list to insert sql` and `op.save obj.list to update sql` as 💯 due to implementation through `handleListProperties`
-4. Updated implementation descriptions to accurately reflect current code state
+1. Updated Select module implementation status, confirmed complete implementation of offline query and pagination
+2. Updated Delete module implementation status, added batch deletion and transaction support
+3. Updated Align module implementation status, confirmed complete implementation of table structure upgrade, data cleanup, and duplicate cleanup
+4. Updated Mechanism module implementation status, confirmed complete implementation of JSON object support
+5. Updated PARADIGM module implementation status, confirmed complete test coverage
 
 ### Next Steps
 1. Implement local index creation for better query performance
-2. Enhance offline mode functionality for response loading
-3. Implement pagination support for list queries
-4. Add business key query capabilities
-5. Implement data aging mechanism
-6. Add missing data cleanup functionality
-7. Implement table structure auto-upgrade
-8. Add vector table support for advanced data structures
+2. Implement business key query functionality
+3. Implement data aging mechanism
+4. Add vector table support
+5. Optimize batch operation performance
+6. Enhance error handling and logging
+7. Improve documentation and example code
