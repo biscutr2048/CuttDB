@@ -1,61 +1,118 @@
 import Foundation
+import XCTest
 
-/// 离线查询测试
-class SelectModule_OfflineTest: CuttDBTestCase {
-    override func runTests() {
-        print("\n=== 离线查询测试 ===")
-        
-        // 测试数据
-        let testData = [
-            "api": "/user",
-            "method": "GET",
-            "listProperty": "orders",
-            "property": "address",
-            "expirationTime": 3600.0
+class SelectModule_OfflineTest: XCTestCase {
+    private var db: CuttDB!
+    private var mockService: MockCuttDBService!
+    
+    override func setUp() {
+        super.setUp()
+        let config = CuttDBServiceConfiguration(dbPath: ":memory:")
+        mockService = MockCuttDBService()
+        db = CuttDB(configuration: config)
+    }
+    
+    override func tearDown() {
+        db = nil
+        mockService = nil
+        super.tearDown()
+    }
+    
+    func testOfflineQuery() {
+        // 准备测试数据
+        let tableName = "test_table"
+        let columns = [
+            "id": "INTEGER PRIMARY KEY",
+            "name": "TEXT",
+            "email": "TEXT",
+            "last_updated": "TEXT"
         ]
         
-        // 创建Mock服务
-        let mockService = MockCuttDBService()
+        // 创建表
+        XCTAssertTrue(db.ensureTableExists(tableName: tableName, columns: columns))
         
-        // 测试恢复最近一次响应
-        print("\n测试恢复最近一次响应")
-        let lastResponse = CuttDB.restoreLastResponse(
-            api: testData["api"] as! String,
-            method: testData["method"] as! String,
-            dbService: mockService
-        )
-        assert(lastResponse != nil, "恢复最近一次响应失败")
+        // 插入测试数据
+        let testData = [
+            ["id": "1", "name": "John", "email": "john@example.com", "last_updated": "2024-01-01"],
+            ["id": "2", "name": "Jane", "email": "jane@example.com", "last_updated": "2024-01-02"]
+        ]
         
-        // 测试恢复列表响应
-        print("\n测试恢复列表响应")
-        let listResponse = CuttDB.restoreListResponse(
-            api: testData["api"] as! String,
-            method: testData["method"] as! String,
-            listProperty: testData["listProperty"] as! String,
-            dbService: mockService
-        )
-        assert(!listResponse.isEmpty, "恢复列表响应失败")
+        for data in testData {
+            XCTAssertTrue(db.insertObject(data))
+        }
         
-        // 测试恢复子表响应
-        print("\n测试恢复子表响应")
-        let subTableResponse = CuttDB.restoreSubTableResponse(
-            api: testData["api"] as! String,
-            method: testData["method"] as! String,
-            property: testData["property"] as! String,
-            dbService: mockService
-        )
-        assert(!subTableResponse.isEmpty, "恢复子表响应失败")
+        // 测试离线查询
+        let results = db.queryObjects([String: Any].self, whereClause: nil)
+        XCTAssertEqual(results.count, 2, "Should return all records")
         
-        // 测试处理过期响应
-        print("\n测试处理过期响应")
-        let handleExpiredResult = CuttDB.handleExpiredResponse(
-            api: testData["api"] as! String,
-            method: testData["method"] as! String,
-            expirationTime: testData["expirationTime"] as! TimeInterval,
-            dbService: mockService
-        )
-        assert(handleExpiredResult, "处理过期响应失败")
+        // 验证数据完整性
+        let firstRecord = results.first
+        XCTAssertEqual(firstRecord?["name"] as? String, "John", "Should have correct name")
+        XCTAssertEqual(firstRecord?["email"] as? String, "john@example.com", "Should have correct email")
+    }
+    
+    func testOfflineQueryWithFilter() {
+        // 准备测试数据
+        let tableName = "test_table"
+        let columns = [
+            "id": "INTEGER PRIMARY KEY",
+            "name": "TEXT",
+            "email": "TEXT",
+            "last_updated": "TEXT"
+        ]
         
-        print("\n=== 离线查询测试完成 ===")
+        // 创建表
+        XCTAssertTrue(db.ensureTableExists(tableName: tableName, columns: columns))
+        
+        // 插入测试数据
+        let testData = [
+            ["id": "1", "name": "John", "email": "john@example.com", "last_updated": "2024-01-01"],
+            ["id": "2", "name": "Jane", "email": "jane@example.com", "last_updated": "2024-01-02"]
+        ]
+        
+        for data in testData {
+            XCTAssertTrue(db.insertObject(data))
+        }
+        
+        // 测试带过滤的离线查询
+        let results = db.queryObjects([String: Any].self, whereClause: "name = 'John'")
+        XCTAssertEqual(results.count, 1, "Should return only John's record")
+        
+        // 验证数据完整性
+        let firstRecord = results.first
+        XCTAssertEqual(firstRecord?["name"] as? String, "John", "Should have correct name")
+        XCTAssertEqual(firstRecord?["email"] as? String, "john@example.com", "Should have correct email")
+    }
+    
+    func testOfflineQueryWithOrder() {
+        // 准备测试数据
+        let tableName = "test_table"
+        let columns = [
+            "id": "INTEGER PRIMARY KEY",
+            "name": "TEXT",
+            "email": "TEXT",
+            "last_updated": "TEXT"
+        ]
+        
+        // 创建表
+        XCTAssertTrue(db.ensureTableExists(tableName: tableName, columns: columns))
+        
+        // 插入测试数据
+        let testData = [
+            ["id": "1", "name": "John", "email": "john@example.com", "last_updated": "2024-01-01"],
+            ["id": "2", "name": "Jane", "email": "jane@example.com", "last_updated": "2024-01-02"]
+        ]
+        
+        for data in testData {
+            XCTAssertTrue(db.insertObject(data))
+        }
+        
+        // 测试带排序的离线查询
+        let results = db.queryObjects([String: Any].self, whereClause: nil, orderBy: "last_updated DESC")
+        XCTAssertEqual(results.count, 2, "Should return all records")
+        
+        // 验证排序
+        let firstRecord = results.first
+        XCTAssertEqual(firstRecord?["name"] as? String, "Jane", "Should be sorted by last_updated DESC")
     }
 } 

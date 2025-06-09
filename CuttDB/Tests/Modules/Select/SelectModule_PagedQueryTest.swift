@@ -1,78 +1,137 @@
 import Foundation
+import XCTest
 
-/// 选择模块 - 分页查询测试
-class SelectModule_PagedQueryTest: CuttDBTestCase {
-    private let cuttDB: CuttDB
+class SelectModule_PagedQueryTest: XCTestCase {
+    private var db: CuttDB!
+    private var mockService: MockCuttDBService!
     
-    override init() {
-        self.cuttDB = CuttDB(dbName: "test_paged_query.sqlite")
-        super.init()
+    override func setUp() {
+        super.setUp()
+        let config = CuttDBServiceConfiguration(dbPath: ":memory:")
+        mockService = MockCuttDBService()
+        db = CuttDB(configuration: config)
     }
     
-    override func runTests() {
-        print("Running SelectModule_PagedQueryTest...")
-        
-        // 创建测试数据
-        let testData = [
-            "tableName": "test_table",
-            "pageSize": 10,
-            "pageNumber": 1,
-            "sortField": "created_at",
-            "sortOrder": "DESC",
-            "filter": "status = 'active'",
-            "fields": ["id", "name", "status", "created_at"]
+    override func tearDown() {
+        db = nil
+        mockService = nil
+        super.tearDown()
+    }
+    
+    func testBasicPagedQuery() {
+        // 准备测试数据
+        let tableName = "test_table"
+        let columns = [
+            "id": "INTEGER PRIMARY KEY",
+            "name": "TEXT",
+            "status": "TEXT",
+            "created_at": "TEXT"
         ]
         
+        // 创建表
+        XCTAssertTrue(db.ensureTableExists(tableName: tableName, columns: columns))
+        
+        // 插入测试数据
+        let testData = [
+            ["id": "1", "name": "John", "status": "active", "created_at": "2024-01-01"],
+            ["id": "2", "name": "Jane", "status": "active", "created_at": "2024-01-02"],
+            ["id": "3", "name": "Bob", "status": "inactive", "created_at": "2024-01-03"]
+        ]
+        
+        for data in testData {
+            XCTAssertTrue(db.insertObject(data))
+        }
+        
         // 测试基本分页查询
-        print("Testing basic paged query...")
-        let basicQueryResult = cuttDB.queryPaged(
-            from: testData["tableName"] as! String,
-            page: testData["pageNumber"] as! Int,
-            pageSize: testData["pageSize"] as! Int
-        )
-        assert(!basicQueryResult.isEmpty, "Basic paged query failed")
+        let results = db.queryWithPagination([String: Any].self, page: 1, pageSize: 2)
+        XCTAssertEqual(results.count, 2, "Should return 2 records per page")
+    }
+    
+    func testSortedPagedQuery() {
+        // 准备测试数据
+        let tableName = "test_table"
+        let columns = [
+            "id": "INTEGER PRIMARY KEY",
+            "name": "TEXT",
+            "status": "TEXT",
+            "created_at": "TEXT"
+        ]
+        
+        // 创建表
+        XCTAssertTrue(db.ensureTableExists(tableName: tableName, columns: columns))
+        
+        // 插入测试数据
+        let testData = [
+            ["id": "1", "name": "John", "status": "active", "created_at": "2024-01-01"],
+            ["id": "2", "name": "Jane", "status": "active", "created_at": "2024-01-02"],
+            ["id": "3", "name": "Bob", "status": "inactive", "created_at": "2024-01-03"]
+        ]
+        
+        for data in testData {
+            XCTAssertTrue(db.insertObject(data))
+        }
         
         // 测试带排序的分页查询
-        print("Testing sorted paged query...")
-        let sortedQueryResult = cuttDB.queryPaged(
-            from: testData["tableName"] as! String,
-            page: testData["pageNumber"] as! Int,
-            pageSize: testData["pageSize"] as! Int,
-            where: nil,
-            orderBy: "\(testData["sortField"] as! String) \(testData["sortOrder"] as! String)"
-        )
-        assert(!sortedQueryResult.isEmpty, "Sorted paged query failed")
+        let results = db.queryWithPagination([String: Any].self, page: 1, pageSize: 2, orderBy: "created_at DESC")
+        XCTAssertEqual(results.count, 2, "Should return 2 records per page")
+        XCTAssertEqual(results.first?["created_at"] as? String, "2024-01-03", "Should be sorted by created_at DESC")
+    }
+    
+    func testFilteredPagedQuery() {
+        // 准备测试数据
+        let tableName = "test_table"
+        let columns = [
+            "id": "INTEGER PRIMARY KEY",
+            "name": "TEXT",
+            "status": "TEXT",
+            "created_at": "TEXT"
+        ]
+        
+        // 创建表
+        XCTAssertTrue(db.ensureTableExists(tableName: tableName, columns: columns))
+        
+        // 插入测试数据
+        let testData = [
+            ["id": "1", "name": "John", "status": "active", "created_at": "2024-01-01"],
+            ["id": "2", "name": "Jane", "status": "active", "created_at": "2024-01-02"],
+            ["id": "3", "name": "Bob", "status": "inactive", "created_at": "2024-01-03"]
+        ]
+        
+        for data in testData {
+            XCTAssertTrue(db.insertObject(data))
+        }
         
         // 测试带过滤的分页查询
-        print("Testing filtered paged query...")
-        let filteredQueryResult = cuttDB.queryPaged(
-            from: testData["tableName"] as! String,
-            page: testData["pageNumber"] as! Int,
-            pageSize: testData["pageSize"] as! Int,
-            where: testData["filter"] as! String
-        )
-        assert(!filteredQueryResult.isEmpty, "Filtered paged query failed")
+        let results = db.queryWithPagination([String: Any].self, page: 1, pageSize: 2, whereClause: "status = 'active'")
+        XCTAssertEqual(results.count, 2, "Should return 2 active records")
+    }
+    
+    func testTotalCount() {
+        // 准备测试数据
+        let tableName = "test_table"
+        let columns = [
+            "id": "INTEGER PRIMARY KEY",
+            "name": "TEXT",
+            "status": "TEXT",
+            "created_at": "TEXT"
+        ]
         
-        // 测试带字段选择的分页查询
-        print("Testing field selection paged query...")
-        let fieldQueryResult = cuttDB.queryPaged(
-            from: testData["tableName"] as! String,
-            page: testData["pageNumber"] as! Int,
-            pageSize: testData["pageSize"] as! Int,
-            where: nil,
-            orderBy: nil,
-            fields: testData["fields"] as! [String]
-        )
-        assert(!fieldQueryResult.isEmpty, "Field selection paged query failed")
+        // 创建表
+        XCTAssertTrue(db.ensureTableExists(tableName: tableName, columns: columns))
         
-        // 测试分页总数查询
-        print("Testing total count query...")
-        let totalCount = cuttDB.queryCount(
-            from: testData["tableName"] as! String,
-            where: testData["filter"] as! String
-        )
-        assert(totalCount >= 0, "Total count query failed")
+        // 插入测试数据
+        let testData = [
+            ["id": "1", "name": "John", "status": "active", "created_at": "2024-01-01"],
+            ["id": "2", "name": "Jane", "status": "active", "created_at": "2024-01-02"],
+            ["id": "3", "name": "Bob", "status": "inactive", "created_at": "2024-01-03"]
+        ]
         
-        print("SelectModule_PagedQueryTest completed successfully!")
+        for data in testData {
+            XCTAssertTrue(db.insertObject(data))
+        }
+        
+        // 测试总数查询
+        let totalCount = db.getTotalCount([String: Any].self, whereClause: "status = 'active'")
+        XCTAssertEqual(totalCount, 2, "Should have 2 active records")
     }
 } 

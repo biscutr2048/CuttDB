@@ -1,70 +1,123 @@
 import Foundation
+import XCTest
 
-/// 删除模块 - 批量删除测试
-class DeleteModule_BatchTest: CuttDBTestCase {
-    private let cuttDB: CuttDB
+class DeleteModule_BatchTest: XCTestCase {
+    private var db: CuttDB!
+    private var mockService: MockCuttDBService!
     
-    override init() {
-        self.cuttDB = CuttDB(dbName: "test_batch_delete.sqlite")
-        super.init()
+    override func setUp() {
+        super.setUp()
+        let config = CuttDBServiceConfiguration(dbPath: ":memory:")
+        mockService = MockCuttDBService()
+        db = CuttDB(configuration: config)
     }
     
-    override func runTests() {
-        print("Running DeleteModule_BatchTest...")
-        
-        // 创建测试数据
-        let testData = [
-            "tableName": "test_table",
-            "conditions": ["id = 1", "id = 2", "id = 3"],
-            "condition": "status = 'inactive'",
-            "config": [
-                "batch_size": 100,
-                "max_retries": 3
-            ]
+    override func tearDown() {
+        db = nil
+        mockService = nil
+        super.tearDown()
+    }
+    
+    func testBatchDelete() {
+        // 准备测试数据
+        let tableName = "test_table"
+        let columns = [
+            "id": "INTEGER PRIMARY KEY",
+            "name": "TEXT",
+            "status": "TEXT"
         ]
         
-        // 测试批量删除记录
-        print("Testing batchDeleteRecords...")
-        let batchResult = cuttDB.batchDelete(
-            from: testData["tableName"] as! String,
-            where: testData["conditions"] as! [String]
-        )
-        assert(batchResult > 0, "Batch delete records failed")
+        // 创建表
+        XCTAssertTrue(db.ensureTableExists(tableName: tableName, columns: columns))
         
-        // 测试带条件的批量删除
-        print("Testing batchDeleteWithCondition...")
-        let conditionResult = cuttDB.batchDelete(
-            from: testData["tableName"] as! String,
-            where: testData["condition"] as! String,
-            batchSize: (testData["config"] as! [String: Any])["batch_size"] as! Int
-        )
-        assert(conditionResult > 0, "Batch delete with condition failed")
+        // 插入测试数据
+        let testData = [
+            ["id": "1", "name": "John", "status": "active"],
+            ["id": "2", "name": "Jane", "status": "active"],
+            ["id": "3", "name": "Bob", "status": "inactive"],
+            ["id": "4", "name": "Alice", "status": "inactive"]
+        ]
+        
+        for data in testData {
+            XCTAssertTrue(db.insertObject(data))
+        }
+        
+        // 测试批量删除
+        let deletedCount = db.deleteObjects([String: Any].self, whereClause: "status = 'inactive'")
+        XCTAssertEqual(deletedCount, 2, "Should delete 2 inactive records")
+        
+        // 验证结果
+        let remainingCount = db.getTotalCount([String: Any].self, whereClause: nil)
+        XCTAssertEqual(remainingCount, 2, "Should have 2 active records remaining")
+    }
+    
+    func testBatchDeleteWithTransaction() {
+        // 准备测试数据
+        let tableName = "test_table"
+        let columns = [
+            "id": "INTEGER PRIMARY KEY",
+            "name": "TEXT",
+            "status": "TEXT"
+        ]
+        
+        // 创建表
+        XCTAssertTrue(db.ensureTableExists(tableName: tableName, columns: columns))
+        
+        // 插入测试数据
+        let testData = [
+            ["id": "1", "name": "John", "status": "active"],
+            ["id": "2", "name": "Jane", "status": "active"],
+            ["id": "3", "name": "Bob", "status": "inactive"],
+            ["id": "4", "name": "Alice", "status": "inactive"]
+        ]
+        
+        for data in testData {
+            XCTAssertTrue(db.insertObject(data))
+        }
         
         // 测试事务中的批量删除
-        print("Testing batchDeleteInTransaction...")
-        let transactionResult = cuttDB.batchDeleteInTransaction(
-            from: testData["tableName"] as! String,
-            where: testData["conditions"] as! [String]
-        )
-        assert(transactionResult, "Batch delete in transaction failed")
+        db.beginTransaction()
+        let deletedCount = db.deleteObjects([String: Any].self, whereClause: "status = 'inactive'")
+        XCTAssertEqual(deletedCount, 2, "Should delete 2 inactive records")
+        db.commitTransaction()
         
-        // 测试带重试的批量删除
-        print("Testing batchDeleteWithRetry...")
-        let retryResult = cuttDB.batchDeleteWithRetry(
-            from: testData["tableName"] as! String,
-            where: testData["conditions"] as! [String],
-            maxRetries: (testData["config"] as! [String: Any])["max_retries"] as! Int
-        )
-        assert(retryResult, "Batch delete with retry failed")
+        // 验证结果
+        let remainingCount = db.getTotalCount([String: Any].self, whereClause: nil)
+        XCTAssertEqual(remainingCount, 2, "Should have 2 active records remaining")
+    }
+    
+    func testBatchDeleteWithRollback() {
+        // 准备测试数据
+        let tableName = "test_table"
+        let columns = [
+            "id": "INTEGER PRIMARY KEY",
+            "name": "TEXT",
+            "status": "TEXT"
+        ]
         
-        // 测试验证批量删除
-        print("Testing validateBatchDelete...")
-        let validateResult = cuttDB.validateBatchDelete(
-            from: testData["tableName"] as! String,
-            where: testData["conditions"] as! [String]
-        )
-        assert(validateResult, "Validate batch delete failed")
+        // 创建表
+        XCTAssertTrue(db.ensureTableExists(tableName: tableName, columns: columns))
         
-        print("DeleteModule_BatchTest completed successfully!")
+        // 插入测试数据
+        let testData = [
+            ["id": "1", "name": "John", "status": "active"],
+            ["id": "2", "name": "Jane", "status": "active"],
+            ["id": "3", "name": "Bob", "status": "inactive"],
+            ["id": "4", "name": "Alice", "status": "inactive"]
+        ]
+        
+        for data in testData {
+            XCTAssertTrue(db.insertObject(data))
+        }
+        
+        // 测试事务回滚
+        db.beginTransaction()
+        let deletedCount = db.deleteObjects([String: Any].self, whereClause: "status = 'inactive'")
+        XCTAssertEqual(deletedCount, 2, "Should delete 2 inactive records")
+        db.rollbackTransaction()
+        
+        // 验证结果
+        let remainingCount = db.getTotalCount([String: Any].self, whereClause: nil)
+        XCTAssertEqual(remainingCount, 4, "Should have all records after rollback")
     }
 } 
