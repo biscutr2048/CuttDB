@@ -1,3 +1,10 @@
+//
+//  PagedQuery.swift
+//  CuttDB
+//
+//  Created by BISCUTR@QQ.COM on 2025/6/9.
+//
+
 import Foundation
 
 /// 分页查询管理器 - 负责分页数据查询

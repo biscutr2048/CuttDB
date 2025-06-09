@@ -1,3 +1,10 @@
+//
+//  ObjectQuery.swift
+//  CuttDB
+//
+//  Created by BISCUTR@QQ.COM on 2025/6/9.
+//
+
 import Foundation
 
 /// 对象查询 - 负责对象查询操作

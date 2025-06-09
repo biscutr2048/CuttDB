@@ -1,3 +1,10 @@
+//
+//  CuttDB.swift
+//  CuttDB
+//
+//  Created by BISCUTR@QQ.COM on 2025/6/9.
+//
+
 import Foundation
 
 /// CuttDB - 一个轻量级的数据库管理系统

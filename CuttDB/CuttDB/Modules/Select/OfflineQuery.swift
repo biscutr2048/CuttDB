@@ -1,3 +1,10 @@
+//
+//  OfflineQuery.swift
+//  CuttDB
+//
+//  Created by BISCUTR@QQ.COM on 2025/6/9.
+//
+
 import Foundation
 
 /// 离线查询管理器 - 负责离线数据查询

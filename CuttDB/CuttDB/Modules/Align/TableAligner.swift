@@ -1,3 +1,10 @@
+//
+//  TableAligner.swift
+//  CuttDB
+//
+//  Created by BISCUTR@QQ.COM on 2025/6/9.
+//
+
 import Foundation
 
 /// 表对齐器 - 负责表结构对齐

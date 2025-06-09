@@ -1,3 +1,10 @@
+//
+//  TableDefinitionManager.swift
+//  CuttDB
+//
+//  Created by BISCUTR@QQ.COM on 2025/6/9.
+//
+
 import Foundation
 
 /// 表定义管理器 - 负责表定义的管理

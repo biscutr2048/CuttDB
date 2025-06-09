@@ -1,3 +1,10 @@
+//
+//  BatchManager.swift
+//  CuttDB
+//
+//  Created by BISCUTR@QQ.COM on 2025/6/9.
+//
+
 import Foundation
 
 /// 批处理管理器 - 负责批量数据操作

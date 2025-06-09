@@ -1,3 +1,10 @@
+//
+//  IndexManager.swift
+//  CuttDB
+//
+//  Created by BISCUTR@QQ.COM on 2025/6/9.
+//
+
 import Foundation
 
 /// 索引管理器 - 负责索引的创建和管理

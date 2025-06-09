@@ -1,3 +1,10 @@
+//
+//  DataManager.swift
+//  CuttDB
+//
+//  Created by BISCUTR@QQ.COM on 2025/6/9.
+//
+
 import Foundation
 
 /// 数据管理器 - 负责数据操作

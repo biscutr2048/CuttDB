@@ -1,3 +1,10 @@
+//
+//  TableManager.swift
+//  CuttDB
+//
+//  Created by BISCUTR@QQ.COM on 2025/6/9.
+//
+
 import Foundation
 
 /// 表管理器 - 负责表的创建和管理

@@ -1,3 +1,10 @@
+//
+//  DeleteManager.swift
+//  CuttDB
+//
+//  Created by BISCUTR@QQ.COM on 2025/6/9.
+//
+
 import Foundation
 
 /// 删除管理器 - 负责数据删除操作

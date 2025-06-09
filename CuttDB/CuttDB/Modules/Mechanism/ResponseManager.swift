@@ -1,3 +1,10 @@
+//
+//  ResponseManager.swift
+//  CuttDB
+//
+//  Created by BISCUTR@QQ.COM on 2025/6/9.
+//
+
 import Foundation
 
 /// 响应管理器 - 负责响应数据的管理

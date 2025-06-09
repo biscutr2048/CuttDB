@@ -1,3 +1,10 @@
+//
+//  CuttDBService.swift
+//  CuttDB
+//
+//  Created by BISCUTR@QQ.COM on 2025/6/9.
+//
+
 import Foundation
 
 /// CuttDB服务配置

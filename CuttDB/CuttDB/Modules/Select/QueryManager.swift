@@ -1,3 +1,10 @@
+//
+//  QueryManager.swift
+//  CuttDB
+//
+//  Created by BISCUTR@QQ.COM on 2025/6/9.
+//
+
 import Foundation
 
 /// 查询管理器 - 负责数据查询操作

@@ -1,3 +1,10 @@
+//
+//  VectorManager.swift
+//  CuttDB
+//
+//  Created by BISCUTR@QQ.COM on 2025/6/9.
+//
+
 import Foundation
 
 /// 向量管理器 - 负责向量数据的存储和检索
