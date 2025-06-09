@@ -10,73 +10,200 @@ import XCTest
 
 /// Test class for complex list properties operations
 final class ListPropertiesModule_ComplexTest: CuttDBTestCase {
-    struct TestRecord: Codable, Equatable {
+    // MARK: - Properties
+    
+    /// Test data model
+    private struct TestRecord: Codable {
         let id: Int
         let name: String
-        let age: Int
-        let tags: String
-    }
-    let table = "list_properties_test"
-    
-    override func setUp() {
-        super.setUp()
-        _ = db.ensureTableExists(tableName: table, columns: [
-            "id": "INTEGER PRIMARY KEY",
-            "name": "TEXT",
-            "age": "INTEGER",
-            "tags": "TEXT"
-        ])
+        let tags: [String]
+        let scores: [Int]
     }
     
-    override func tearDown() {
-        // 通常测试用例不需要 dropTable，直接保证表存在即可
-        super.tearDown()
+    /// Test data
+    private struct TestData {
+        /// Table name
+        static let tableName = "test_table"
+        
+        /// Column definitions
+        static let columns = [
+            "id INTEGER PRIMARY KEY",
+            "name TEXT",
+            "tags TEXT",
+            "scores TEXT"
+        ]
+        
+        /// Test records
+        static let records: [[String: Any]] = [
+            [
+                "id": 1,
+                "name": "Test 1",
+                "tags": ["tag1", "tag2"],
+                "scores": [80, 90]
+            ],
+            [
+                "id": 2,
+                "name": "Test 2",
+                "tags": ["tag2", "tag3"],
+                "scores": [85, 95]
+            ]
+        ]
     }
     
     // MARK: - Test Methods
     
     /// Test basic list properties
-    func testBasicListProperties() throws {
-        let record = TestRecord(id: 1, name: "Test", age: 25, tags: "tag1,tag2,tag3")
-        let result = db.insertObject(record)
-        XCTAssertTrue(result)
-        let records: [TestRecord] = db.query(from: table, where: "id = 1")
-        XCTAssertEqual(records.count, 1)
-        XCTAssertEqual(records[0], record)
+    func testBasicListProperties() {
+        // Prepare
+        let tableName = TestData.tableName
+        
+        // Create table
+        _ = try? db.createTable(
+            name: tableName,
+            columns: TestData.columns
+        )
+        
+        // Insert test data
+        for record in TestData.records {
+            let result = try? db.insertOrUpdate(
+                table: tableName,
+                record: record
+            )
+            XCTAssertTrue(result?.success ?? false)
+        }
+        
+        // Query and verify
+        let queryResult = try? db.query(
+            from: tableName,
+            where: nil,
+            orderBy: "id",
+            limit: nil
+        ) as [TestRecord]
+        
+        XCTAssertNotNil(queryResult)
+        XCTAssertEqual(queryResult?.count, TestData.records.count)
+        
+        // Verify first record
+        if let firstRecord = queryResult?.first {
+            XCTAssertEqual(firstRecord.id, 1)
+            XCTAssertEqual(firstRecord.name, "Test 1")
+            XCTAssertEqual(firstRecord.tags, ["tag1", "tag2"])
+            XCTAssertEqual(firstRecord.scores, [80, 90])
+        }
     }
     
-    /// Test list properties with multiple values
-    func testListPropertiesWithMultipleValues() throws {
-        let records = [
-            TestRecord(id: 1, name: "Test 1", age: 25, tags: "tag1,tag2"),
-            TestRecord(id: 2, name: "Test 2", age: 30, tags: "tag2,tag3"),
-            TestRecord(id: 3, name: "Test 3", age: 35, tags: "tag1,tag3")
+    /// Test list properties update
+    func testListPropertiesUpdate() {
+        // Prepare
+        let tableName = TestData.tableName
+        
+        // Create table
+        _ = try? db.createTable(
+            name: tableName,
+            columns: TestData.columns
+        )
+        
+        // Insert test data
+        for record in TestData.records {
+            _ = try? db.insertOrUpdate(
+                table: tableName,
+                record: record
+            )
+        }
+        
+        // Update record
+        let updateRecord: [String: Any] = [
+            "id": 1,
+            "name": "Updated Test",
+            "tags": ["new_tag1", "new_tag2"],
+            "scores": [95, 100]
         ]
-        for rec in records {
-            XCTAssertTrue(db.insertObject(rec))
+        
+        let updateResult = try? db.insertOrUpdate(
+            table: tableName,
+            record: updateRecord
+        )
+        XCTAssertTrue(updateResult?.success ?? false)
+        
+        // Verify update result
+        let queryResult = try? db.query(
+            from: tableName,
+            where: "id = ?",
+            orderBy: nil,
+            limit: nil
+        ) as [TestRecord]
+        
+        XCTAssertNotNil(queryResult)
+        XCTAssertEqual(queryResult?.count, 1)
+        
+        if let updatedRecord = queryResult?.first {
+            XCTAssertEqual(updatedRecord.id, 1)
+            XCTAssertEqual(updatedRecord.name, "Updated Test")
+            XCTAssertEqual(updatedRecord.tags, ["new_tag1", "new_tag2"])
+            XCTAssertEqual(updatedRecord.scores, [95, 100])
         }
-        let results: [TestRecord] = db.query(from: table)
-        XCTAssertEqual(results.count, 3)
     }
     
-    /// Test list properties with invalid data
-    func testListPropertiesWithInvalidData() throws {
-        struct InvalidRecord: Codable {
-            let id: String
-            let name: Int
-            let age: String
-            let tags: Int
+    /// Test list properties query
+    func testListPropertiesQuery() {
+        // Prepare
+        let tableName = TestData.tableName
+        
+        // Create table
+        _ = try? db.createTable(
+            name: tableName,
+            columns: TestData.columns
+        )
+        
+        // Insert test data
+        for record in TestData.records {
+            _ = try? db.insertOrUpdate(
+                table: tableName,
+                record: record
+            )
         }
-        let invalid = InvalidRecord(id: "bad", name: 123, age: "not a number", tags: 456)
-        let result = db.insertObject(invalid)
-        XCTAssertFalse(result)
+        
+        // Query for records containing specific tags
+        let queryResult = try? db.query(
+            from: tableName,
+            where: "tags LIKE ?",
+            orderBy: "id",
+            limit: nil
+        ) as [TestRecord]
+        
+        XCTAssertNotNil(queryResult)
+        XCTAssertEqual(queryResult?.count, 2)  // Both records contain "tag2"
+        
+        // Verify query result
+        for record in queryResult ?? [] {
+            XCTAssertTrue(record.tags.contains("tag2"))
+        }
     }
     
-    /// Test performance
-    func testPerformance() throws {
-        let record = TestRecord(id: 99, name: "Perf", age: 1, tags: "t")
-        self.measure {
-            _ = db.insertObject(record)
+    /// Test list properties error handling
+    func testListPropertiesErrorHandling() {
+        // Prepare
+        let tableName = TestData.tableName
+        
+        // Create table
+        _ = try? db.createTable(
+            name: tableName,
+            columns: TestData.columns
+        )
+        
+        // Test invalid list data
+        let invalidRecord: [String: Any] = [
+            "id": 1,
+            "name": "Invalid Test",
+            "tags": "not_an_array",  // Should be an array
+            "scores": [1, 2, 3]
+        ]
+        
+        XCTAssertThrowsError(try db.insertOrUpdate(
+            table: tableName,
+            record: invalidRecord
+        )) { error in
+            XCTAssertTrue(error is CuttDBError)
         }
     }
 } 

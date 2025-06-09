@@ -320,4 +320,152 @@ class MockCuttDBService: CuttDBService {
         transactionLog.removeAll()
         inTransaction = false
     }
+    
+    // MARK: - Private Helper Methods
+    
+    private func extractTableName(from sql: String) -> String {
+        let components = sql.components(separatedBy: " ")
+        if let fromIndex = components.firstIndex(of: "from") {
+            return components[fromIndex + 1].trimmingCharacters(in: .whitespaces)
+        }
+        if let intoIndex = components.firstIndex(of: "into") {
+            return components[intoIndex + 1].trimmingCharacters(in: .whitespaces)
+        }
+        return ""
+    }
+    
+    private func extractWhereClause(from sql: String) -> String? {
+        guard let whereRange = sql.range(of: "where", options: .caseInsensitive) else {
+            return nil
+        }
+        let whereClause = sql[whereRange.upperBound...]
+        if let orderByRange = whereClause.range(of: "order by", options: .caseInsensitive) {
+            return String(whereClause[..<orderByRange.lowerBound]).trimmingCharacters(in: .whitespaces)
+        }
+        if let limitRange = whereClause.range(of: "limit", options: .caseInsensitive) {
+            return String(whereClause[..<limitRange.lowerBound]).trimmingCharacters(in: .whitespaces)
+        }
+        return String(whereClause).trimmingCharacters(in: .whitespaces)
+    }
+    
+    private func extractOrderBy(from sql: String) -> String? {
+        guard let orderByRange = sql.range(of: "order by", options: .caseInsensitive) else {
+            return nil
+        }
+        let orderBy = sql[orderByRange.upperBound...]
+        if let limitRange = orderBy.range(of: "limit", options: .caseInsensitive) {
+            return String(orderBy[..<limitRange.lowerBound]).trimmingCharacters(in: .whitespaces)
+        }
+        return String(orderBy).trimmingCharacters(in: .whitespaces)
+    }
+    
+    private func extractLimitAndOffset(from sql: String) -> (limit: Int, offset: Int)? {
+        guard let limitRange = sql.range(of: "limit", options: .caseInsensitive) else {
+            return nil
+        }
+        let limitStr = sql[limitRange.upperBound...]
+        let components = limitStr.components(separatedBy: " ")
+        guard let limit = Int(components[0]) else { return nil }
+        
+        if components.count > 2 && components[1].lowercased() == "offset" {
+            guard let offset = Int(components[2]) else { return nil }
+            return (limit, offset)
+        }
+        
+        return (limit, 0)
+    }
+    
+    private func extractInsertValues(from sql: String) -> [String: Any]? {
+        guard let valuesRange = sql.range(of: "values", options: .caseInsensitive) else {
+            return nil
+        }
+        let valuesStr = sql[valuesRange.upperBound...]
+        let components = valuesStr.components(separatedBy: ",")
+        var values: [String: Any] = [:]
+        
+        for component in components {
+            let parts = component.trimmingCharacters(in: .whitespaces).components(separatedBy: "=")
+            if parts.count == 2 {
+                let key = parts[0].trimmingCharacters(in: .whitespaces)
+                let value = parts[1].trimmingCharacters(in: .whitespaces)
+                values[key] = value
+            }
+        }
+        
+        return values
+    }
+    
+    private func extractUpdateValues(from sql: String) -> (values: [String: Any], whereClause: String)? {
+        guard let setRange = sql.range(of: "set", options: .caseInsensitive),
+              let whereRange = sql.range(of: "where", options: .caseInsensitive) else {
+            return nil
+        }
+        
+        let setStr = sql[setRange.upperBound..<whereRange.lowerBound]
+        let whereClause = String(sql[whereRange.upperBound...]).trimmingCharacters(in: .whitespaces)
+        
+        var values: [String: Any] = [:]
+        let setComponents = setStr.components(separatedBy: ",")
+        
+        for component in setComponents {
+            let parts = component.trimmingCharacters(in: .whitespaces).components(separatedBy: "=")
+            if parts.count == 2 {
+                let key = parts[0].trimmingCharacters(in: .whitespaces)
+                let value = parts[1].trimmingCharacters(in: .whitespaces)
+                values[key] = value
+            }
+        }
+        
+        return (values, whereClause)
+    }
+    
+    private func filterData(_ data: [[String: Any]], whereClause: String, parameters: [Any]?) -> [[String: Any]] {
+        return data.filter { row in
+            matchesWhereClause(row, whereClause: whereClause, parameters: parameters)
+        }
+    }
+    
+    private func matchesWhereClause(_ row: [String: Any], whereClause: String, parameters: [Any]?) -> Bool {
+        let conditions = whereClause.components(separatedBy: " and ")
+        for condition in conditions {
+            let parts = condition.components(separatedBy: "=")
+            guard parts.count == 2 else { continue }
+            
+            let key = parts[0].trimmingCharacters(in: .whitespaces)
+            let value = parts[1].trimmingCharacters(in: .whitespaces)
+            
+            if let rowValue = row[key] {
+                if String(describing: rowValue) != value {
+                    return false
+                }
+            } else {
+                return false
+            }
+        }
+        return true
+    }
+    
+    private func sortData(_ data: [[String: Any]], orderBy: String) -> [[String: Any]] {
+        let components = orderBy.components(separatedBy: " ")
+        guard components.count >= 1 else { return data }
+        
+        let key = components[0]
+        let ascending = components.count < 2 || components[1].lowercased() != "desc"
+        
+        return data.sorted { row1, row2 in
+            guard let value1 = row1[key], let value2 = row2[key] else {
+                return false
+            }
+            
+            if let str1 = value1 as? String, let str2 = value2 as? String {
+                return ascending ? str1 < str2 : str1 > str2
+            }
+            
+            if let num1 = value1 as? Int, let num2 = value2 as? Int {
+                return ascending ? num1 < num2 : num1 > num2
+            }
+            
+            return false
+        }
+    }
 } 
