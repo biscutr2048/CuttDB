@@ -1,7 +1,7 @@
 import Foundation
 
-/// 表管理模块
-struct TableManager {
+/// 表管理器
+internal struct TableManager {
     private let service: CuttDBService
     
     init(service: CuttDBService) {
@@ -10,17 +10,21 @@ struct TableManager {
     
     /// 确保表存在
     func ensureTableExists(tableName: String, columns: [String]) -> Bool {
-        if !service.tableExists(tableName) {
-            let sql = SQLGenerator.generateCreateTableSQL(tableName: tableName, columns: columns)
-            return service.execute(sql: sql)
-        }
-        return true
+        let sql = SQLGenerator.createTableIfNotExists(tableName: tableName, columns: columns)
+        return service.executeSQL(sql)
     }
     
     /// 确保子表存在
     func ensureSubTableExists(tableName: String, property: String, columns: [String]) -> Bool {
-        let subTableName = "\(tableName)-sub-\(property)"
+        let subTableName = "\(tableName)_\(property)"
         return ensureTableExists(tableName: subTableName, columns: columns)
+    }
+    
+    /// 检查表是否存在
+    func tableExists(_ tableName: String) -> Bool {
+        let sql = "SELECT name FROM sqlite_master WHERE type='table' AND name='\(tableName)'"
+        let result = service.query(sql)
+        return !result.isEmpty
     }
     
     /// 获取表结构
