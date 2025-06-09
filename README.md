@@ -96,6 +96,30 @@ a sqlite3 access automation model
 - recover response
 - deal with listing and properties, even sub-table automatically.
 
+---
+
+## Testing
+CuttDB 采用分层测试架构，确保代码质量和可靠性：
+
+### 测试架构
+- 服务层测试：验证 `CuttDBService` 的具体实现
+- 接口层测试：验证 `CuttDB` 的公共接口
+- 使用 `MockCuttDBService` 模拟数据库操作
+
+### 测试模块
+- Create Module：表定义、子表、自动创建测试
+- Select Module：离线查询、分页查询测试
+- InsertUpdate Module：SQL生成、事务处理测试
+- Delete Module：数据老化、批量删除测试
+- Align Module：表结构升级、数据清理测试
+- ListProperties Module：复杂列表测试
+- Mechanism Module：索引管理、响应处理测试
+
+### 测试执行
+- 使用 `CuttDBTest` 统一管理测试执行
+- 支持单个模块测试和全量测试
+- 提供详细的测试结果输出
+
 
 ---
 

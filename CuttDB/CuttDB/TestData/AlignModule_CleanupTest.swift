@@ -114,4 +114,90 @@ struct AlignModule_CleanupTest {
             assert(result, "Should log cleanup operation")
         }
     }
+}
+
+class AlignModule_CleanupTest: CuttDBTestCase {
+    override func runTests() {
+        print("Running AlignModule_CleanupTest...")
+        
+        // 创建测试数据
+        let testData = [
+            "tableName": "test_table",
+            "condition": "status = 'inactive'",
+            "conditions": ["status = 'inactive'", "created_at < '2024-01-01'"],
+            "config": [
+                "batch_size": 100,
+                "max_retries": 3
+            ],
+            "backupConfig": [
+                "backup_table": "test_table_backup",
+                "include_data": true
+            ],
+            "operation": "cleanup",
+            "details": [
+                "affected_rows": 100,
+                "timestamp": "2024-03-20 10:00:00"
+            ]
+        ]
+        
+        // 创建Mock服务
+        let mockService = MockCuttDBService()
+        
+        // 测试清理数据
+        print("Testing cleanupData...")
+        let cleanupResult = CuttDB.cleanupData(
+            tableName: testData["tableName"] as! String,
+            condition: testData["condition"] as! String,
+            dbService: mockService
+        )
+        assert(cleanupResult, "Cleanup data failed")
+        
+        // 测试批量清理
+        print("Testing batchCleanup...")
+        let batchResult = CuttDB.batchCleanup(
+            tableName: testData["tableName"] as! String,
+            conditions: testData["conditions"] as! [String],
+            dbService: mockService
+        )
+        assert(batchResult, "Batch cleanup failed")
+        
+        // 测试验证清理
+        print("Testing validateCleanup...")
+        let validateResult = CuttDB.validateCleanup(
+            tableName: testData["tableName"] as! String,
+            condition: testData["condition"] as! String,
+            dbService: mockService
+        )
+        assert(validateResult, "Validate cleanup failed")
+        
+        // 测试备份
+        print("Testing backupBeforeCleanup...")
+        let backupResult = CuttDB.backupBeforeCleanup(
+            tableName: testData["tableName"] as! String,
+            backupTable: (testData["backupConfig"] as! [String: Any])["backup_table"] as! String,
+            dbService: mockService
+        )
+        assert(backupResult, "Backup before cleanup failed")
+        
+        // 测试恢复
+        print("Testing restoreAfterCleanup...")
+        let restoreResult = CuttDB.restoreAfterCleanup(
+            tableName: testData["tableName"] as! String,
+            backupTable: (testData["backupConfig"] as! [String: Any])["backup_table"] as! String,
+            dbService: mockService
+        )
+        assert(restoreResult, "Restore after cleanup failed")
+        
+        // 测试记录清理操作
+        print("Testing logCleanupOperation...")
+        let logResult = CuttDB.logCleanupOperation(
+            tableName: testData["tableName"] as! String,
+            operation: testData["operation"] as! String,
+            condition: testData["condition"] as! String,
+            dbService: mockService
+        )
+        assert(logResult, "Log cleanup operation failed")
+        
+        print("AlignModule_CleanupTest completed successfully!")
+    }
 } 

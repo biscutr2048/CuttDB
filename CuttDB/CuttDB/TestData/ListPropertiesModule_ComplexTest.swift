@@ -1,127 +1,100 @@
 import Foundation
 
-/// 列表属性模块 - 复杂列表测试
-struct ListPropertiesModule_ComplexTest {
-    /// 测试数据
-    struct Data {
-        static let complexListData: [String: Any] = [
-            "id": 1,
-            "name": "Test User",
-            "orders": [
-                [
-                    "id": 101,
-                    "product": "Item 1",
-                    "quantity": 2,
-                    "price": 99.99,
-                    "details": [
-                        "color": "red",
-                        "size": "L"
-                    ]
-                ],
-                [
-                    "id": 102,
-                    "product": "Item 2",
-                    "quantity": 1,
-                    "price": 149.99,
-                    "details": [
-                        "color": "blue",
-                        "size": "M"
-                    ]
-                ]
+/// 复杂列表属性测试
+class ListPropertiesModule_ComplexTest: CuttDBTestCase {
+    override func runTests() {
+        print("\n=== 复杂列表属性测试 ===")
+        
+        // 测试数据
+        let testData = [
+            "complexList": [
+                ["id": 1, "name": "Item 1", "value": 100],
+                ["id": 2, "name": "Item 2", "value": 200]
             ],
-            "addresses": [
+            "nestedList": [
                 [
-                    "type": "home",
-                    "street": "123 Main St",
-                    "city": "Beijing",
-                    "zip": "100000"
+                    "id": 1,
+                    "name": "Group 1",
+                    "items": [
+                        ["id": 1, "name": "Item 1.1"],
+                        ["id": 2, "name": "Item 1.2"]
+                    ]
                 ],
                 [
-                    "type": "work",
-                    "street": "456 Work Ave",
-                    "city": "Shanghai",
-                    "zip": "200000"
+                    "id": 2,
+                    "name": "Group 2",
+                    "items": [
+                        ["id": 3, "name": "Item 2.1"],
+                        ["id": 4, "name": "Item 2.2"]
+                    ]
                 ]
             ]
         ]
         
-        static let nestedListConfig: [String: Any] = [
-            "max_depth": 3,
-            "list_tables": [
-                "orders": "order_items",
-                "addresses": "user_addresses"
-            ],
-            "foreign_keys": [
-                "orders": ["user_id"],
-                "addresses": ["user_id"]
-            ]
+        // 创建Mock服务
+        let mockService = MockCuttDBService()
+        
+        // 测试复杂列表处理
+        print("\n测试复杂列表处理")
+        let complexListResult = CuttDB.handleComplexListProperties(
+            tableName: "test_table",
+            data: testData["complexList"] as! [[String: Any]],
+            dbService: mockService
+        )
+        assert(complexListResult, "复杂列表处理失败")
+        
+        // 验证复杂列表数据
+        let complexListData = mockService.select(tableName: "test_table_complexList")
+        assert(complexListData.count == 2, "复杂列表数据验证失败")
+        
+        // 测试嵌套列表处理
+        print("\n测试嵌套列表处理")
+        let nestedListResult = CuttDB.handleNestedListProperties(
+            tableName: "test_table",
+            data: testData["nestedList"] as! [[String: Any]],
+            dbService: mockService
+        )
+        assert(nestedListResult, "嵌套列表处理失败")
+        
+        // 验证嵌套列表数据
+        let nestedListData = mockService.select(tableName: "test_table_nestedList")
+        assert(nestedListData.count == 2, "嵌套列表数据验证失败")
+        
+        // 测试列表表创建
+        print("\n测试列表表创建")
+        let listConfig = [
+            "complexList": ["id": "INTEGER", "name": "TEXT", "value": "INTEGER"],
+            "nestedList": ["id": "INTEGER", "name": "TEXT"]
         ]
-    }
-    
-    /// 测试逻辑
-    struct Logic {
-        /// 测试复杂列表处理
-        static func testComplexListHandling() {
-            let mockDBService = MockCuttDBService()
-            let result = CuttDB.handleComplexListProperties(
-                api: "/user",
-                method: "POST",
-                json: Data.complexListData,
-                config: Data.nestedListConfig,
-                dbService: mockDBService
-            )
-            print("Complex List Handling Result:", result)
-            assert(result, "Should handle complex list properties successfully")
-        }
+        let createResult = CuttDB.createListTables(
+            tableName: "test_table",
+            listProperties: listConfig,
+            dbService: mockService
+        )
+        assert(createResult, "列表表创建失败")
         
-        /// 测试嵌套列表处理
-        static func testNestedListHandling() {
-            let mockDBService = MockCuttDBService()
-            let result = CuttDB.handleNestedListProperties(
-                api: "/user",
-                method: "POST",
-                json: Data.complexListData,
-                maxDepth: 3,
-                dbService: mockDBService
-            )
-            print("Nested List Handling Result:", result)
-            assert(result, "Should handle nested list properties successfully")
-        }
+        // 测试列表数据验证
+        print("\n测试列表数据验证")
+        let validateResult = CuttDB.validateListData(
+            tableName: "test_table",
+            data: testData,
+            dbService: mockService
+        )
+        assert(validateResult, "列表数据验证失败")
         
-        /// 测试列表表创建
-        static func testListTableCreation() {
-            let mockDBService = MockCuttDBService()
-            let result = CuttDB.createListTables(
-                parentTable: "users",
-                listConfig: Data.nestedListConfig,
-                dbService: mockDBService
-            )
-            print("List Table Creation Result:", result)
-            assert(result, "Should create list tables successfully")
-        }
+        // 测试列表关系处理
+        print("\n测试列表关系处理")
+        let relationships = [
+            "complexList": "parent_id",
+            "nestedList": "group_id"
+        ]
+        let relationshipResult = CuttDB.handleListRelationships(
+            tableName: "test_table",
+            relationships: relationships,
+            dbService: mockService
+        )
+        assert(relationshipResult, "列表关系处理失败")
         
-        /// 测试列表数据验证
-        static func testListDataValidation() {
-            let mockDBService = MockCuttDBService()
-            let result = CuttDB.validateListData(
-                json: Data.complexListData,
-                config: Data.nestedListConfig,
-                dbService: mockDBService
-            )
-            print("List Data Validation Result:", result)
-            assert(result, "Should validate list data successfully")
-        }
-        
-        /// 测试列表关系处理
-        static func testListRelationshipHandling() {
-            let mockDBService = MockCuttDBService()
-            let result = CuttDB.handleListRelationships(
-                parentTable: "users",
-                listConfig: Data.nestedListConfig,
-                dbService: mockDBService
-            )
-            print("List Relationship Handling Result:", result)
-            assert(result, "Should handle list relationships successfully")
-        }
+        print("\n=== 复杂列表属性测试完成 ===")
     }
 } 

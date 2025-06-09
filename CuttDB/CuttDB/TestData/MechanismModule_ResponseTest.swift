@@ -1,113 +1,72 @@
 import Foundation
 
-/// 机制模块 - 响应处理测试
-struct MechanismModule_ResponseTest {
-    /// 测试数据
-    struct Data {
-        static let successResponse: [String: Any] = [
-            "status": "success",
-            "data": [
+/// 响应处理测试
+class MechanismModule_ResponseTest: CuttDBTestCase {
+    override func runTests() {
+        print("\n=== 响应处理测试 ===")
+        
+        // 测试数据
+        let testData = [
+            "api": "/user",
+            "method": "GET",
+            "response": [
                 "id": 1,
                 "name": "Test User",
-                "email": "test@example.com"
-            ],
-            "message": "Operation completed successfully"
-        ]
-        
-        static let errorResponse: [String: Any] = [
-            "status": "error",
-            "error": [
-                "code": "DB_ERROR",
-                "message": "Database operation failed",
-                "details": "Connection timeout"
-            ],
-            "timestamp": "2024-03-20T10:00:00Z"
-        ]
-        
-        static let validationResponse: [String: Any] = [
-            "status": "validation_error",
-            "errors": [
-                [
-                    "field": "email",
-                    "message": "Invalid email format"
-                ],
-                [
-                    "field": "name",
-                    "message": "Name is required"
-                ]
+                "email": "test@example.com",
+                "created_at": "2024-03-20T10:00:00Z"
             ]
         ]
-    }
-    
-    /// 测试逻辑
-    struct Logic {
-        /// 测试成功响应处理
-        static func testSuccessResponse() {
-            let mockDBService = MockCuttDBService()
-            let result = CuttDB.handleResponse(
-                response: Data.successResponse,
-                dbService: mockDBService
-            )
-            print("Success Response Result:", result)
-            assert(result["status"] as? String == "success", "Should handle success response correctly")
-        }
         
-        /// 测试错误响应处理
-        static func testErrorResponse() {
-            let mockDBService = MockCuttDBService()
-            let result = CuttDB.handleResponse(
-                response: Data.errorResponse,
-                dbService: mockDBService
-            )
-            print("Error Response Result:", result)
-            assert(result["status"] as? String == "error", "Should handle error response correctly")
-        }
+        // 创建Mock服务
+        let mockService = MockCuttDBService()
         
-        /// 测试验证响应处理
-        static func testValidationResponse() {
-            let mockDBService = MockCuttDBService()
-            let result = CuttDB.handleResponse(
-                response: Data.validationResponse,
-                dbService: mockDBService
-            )
-            print("Validation Response Result:", result)
-            assert(result["status"] as? String == "validation_error", "Should handle validation response correctly")
-        }
+        // 测试响应处理
+        print("\n测试响应处理")
+        let handleResult = CuttDB.handleResponse(
+            api: testData["api"] as! String,
+            method: testData["method"] as! String,
+            response: testData["response"] as! [String: Any],
+            dbService: mockService
+        )
+        assert(handleResult, "响应处理失败")
         
-        /// 测试响应转换
-        static func testResponseTransformation() {
-            let mockDBService = MockCuttDBService()
-            let result = CuttDB.transformResponse(
-                response: Data.successResponse,
-                format: "json",
-                dbService: mockDBService
-            )
-            print("Response Transformation Result:", result)
-            assert(result != nil, "Should transform response successfully")
-        }
+        // 测试响应转换
+        print("\n测试响应转换")
+        let mapping = [
+            "id": "user_id",
+            "name": "user_name",
+            "email": "user_email"
+        ]
+        let transformResult = CuttDB.transformResponse(
+            testData["response"] as! [String: Any],
+            mapping: mapping
+        )
+        assert(transformResult["user_id"] as? Int == 1, "响应转换失败")
         
-        /// 测试响应验证
-        static func testResponseValidation() {
-            let mockDBService = MockCuttDBService()
-            let result = CuttDB.validateResponse(
-                response: Data.successResponse,
-                schema: ["status", "data", "message"],
-                dbService: mockDBService
-            )
-            print("Response Validation Result:", result)
-            assert(result, "Should validate response successfully")
-        }
+        // 测试响应验证
+        print("\n测试响应验证")
+        let schema = [
+            "id": "INTEGER",
+            "name": "TEXT",
+            "email": "TEXT",
+            "created_at": "TEXT"
+        ]
+        let validateResult = CuttDB.validateResponse(
+            testData["response"] as! [String: Any],
+            schema: schema
+        )
+        assert(validateResult, "响应验证失败")
         
-        /// 测试响应日志
-        static func testResponseLogging() {
-            let mockDBService = MockCuttDBService()
-            let result = CuttDB.logResponse(
-                response: Data.successResponse,
-                level: "info",
-                dbService: mockDBService
-            )
-            print("Response Logging Result:", result)
-            assert(result, "Should log response successfully")
-        }
+        // 测试响应日志
+        print("\n测试响应日志")
+        let logResult = CuttDB.logResponse(
+            api: testData["api"] as! String,
+            method: testData["method"] as! String,
+            response: testData["response"] as! [String: Any],
+            dbService: mockService
+        )
+        assert(logResult, "响应日志记录失败")
+        
+        print("\n=== 响应处理测试完成 ===")
     }
 } 

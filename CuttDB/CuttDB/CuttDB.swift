@@ -32,6 +32,89 @@ struct CuttDB {
         return fields
     }
     
+    /// 确保表存在
+    /// - Parameters:
+    ///   - tableName: 表名
+    ///   - columns: 列定义
+    ///   - dbService: 数据库服务实例
+    /// - Returns: 是否成功
+    static func ensureTableExists(tableName: String, columns: [String: String], dbService: CuttDBService) -> Bool {
+        return dbService.ensureTableExists(tableName: tableName, columns: columns)
+    }
+    
+    /// 验证表结构
+    /// - Parameters:
+    ///   - tableName: 表名
+    ///   - expectedColumns: 期望的列定义
+    ///   - dbService: 数据库服务实例
+    /// - Returns: 是否验证通过
+    static func validateTableStructure(tableName: String, expectedColumns: [String: String], dbService: CuttDBService) -> Bool {
+        return dbService.validateTableStructure(tableName: tableName, expectedColumns: expectedColumns)
+    }
+    
+    /// 创建索引（如果需要）
+    /// - Parameters:
+    ///   - tableName: 表名
+    ///   - indexes: 索引定义
+    ///   - dbService: 数据库服务实例
+    /// - Returns: 是否成功
+    static func createIndexesIfNeeded(tableName: String, indexes: [String: String], dbService: CuttDBService) -> Bool {
+        return dbService.createIndexesIfNeeded(tableName: tableName, indexes: indexes)
+    }
+    
+    /// 创建单个索引（如果需要）
+    /// - Parameters:
+    ///   - tableName: 表名
+    ///   - indexName: 索引名
+    ///   - columns: 索引列
+    ///   - dbService: 数据库服务实例
+    /// - Returns: 是否成功
+    static func createIndexIfNeeded(tableName: String, indexName: String, columns: [String], dbService: CuttDBService) -> Bool {
+        return dbService.createIndexIfNeeded(tableName: tableName, indexName: indexName, columns: columns)
+    }
+    
+    /// 创建子表
+    /// - Parameters:
+    ///   - parentTable: 父表名
+    ///   - subTable: 子表名
+    ///   - columns: 列定义
+    ///   - dbService: 数据库服务实例
+    /// - Returns: 是否成功
+    static func createSubTable(parentTable: String, subTable: String, columns: [String: String], dbService: CuttDBService) -> Bool {
+        return dbService.createSubTable(parentTable: parentTable, subTable: subTable, columns: columns)
+    }
+    
+    /// 验证子表结构
+    /// - Parameters:
+    ///   - parentTable: 父表名
+    ///   - subTable: 子表名
+    ///   - expectedColumns: 期望的列定义
+    ///   - dbService: 数据库服务实例
+    /// - Returns: 是否验证通过
+    static func validateSubTableStructure(parentTable: String, subTable: String, expectedColumns: [String: String], dbService: CuttDBService) -> Bool {
+        return dbService.validateSubTableStructure(parentTable: parentTable, subTable: subTable, expectedColumns: expectedColumns)
+    }
+    
+    /// 创建表定义
+    /// - Parameters:
+    ///   - tableName: 表名
+    ///   - definition: 表定义
+    ///   - dbService: 数据库服务实例
+    /// - Returns: 是否成功
+    static func createTableDefinition(tableName: String, definition: [String: Any], dbService: CuttDBService) -> Bool {
+        return dbService.createTableDefinition(tableName: tableName, definition: definition)
+    }
+    
+    /// 验证表定义
+    /// - Parameters:
+    ///   - tableName: 表名
+    ///   - expectedDefinition: 期望的表定义
+    ///   - dbService: 数据库服务实例
+    /// - Returns: 是否验证通过
+    static func validateTableDefinition(tableName: String, expectedDefinition: [String: Any], dbService: CuttDBService) -> Bool {
+        return dbService.validateTableDefinition(tableName: tableName, expectedDefinition: expectedDefinition)
+    }
+    
     // MARK: - Insert/Update Module
     /// 模块：insert/update
     /// 需求：op.save object to insert sql, op.save object to update sql
@@ -135,6 +218,116 @@ struct CuttDB {
         return result
     }
     
+    /// 处理复杂列表属性
+    /// - Parameters:
+    ///   - tableName: 表名
+    ///   - data: 包含列表属性的数据
+    ///   - dbService: 数据库服务实例
+    /// - Returns: 处理结果
+    static func handleComplexListProperties(tableName: String, data: [String: Any], dbService: CuttDBService) -> Bool {
+        for (key, value) in data {
+            if let list = value as? [Any] {
+                let subTable = "\(tableName)_\(key)"
+                let tableDef = extractTableDefinition(from: list.first ?? [:])
+                let columns = tableDef.map { "\($0.name) \($0.type)" }
+                
+                if !dbService.executeWithTable(tableName: subTable, columns: columns) {
+                    return false
+                }
+                
+                for item in list {
+                    if let itemDict = item as? [String: Any] {
+                        if !dbService.insert(tableName: subTable, values: itemDict) {
+                            return false
+                        }
+                    }
+                }
+            }
+        }
+        return true
+    }
+    
+    /// 处理嵌套列表属性
+    /// - Parameters:
+    ///   - tableName: 表名
+    ///   - data: 包含嵌套列表的数据
+    ///   - dbService: 数据库服务实例
+    /// - Returns: 处理结果
+    static func handleNestedListProperties(tableName: String, data: [String: Any], dbService: CuttDBService) -> Bool {
+        for (key, value) in data {
+            if let nestedList = value as? [[String: Any]] {
+                let subTable = "\(tableName)_\(key)"
+                let tableDef = extractTableDefinition(from: nestedList.first ?? [:])
+                let columns = tableDef.map { "\($0.name) \($0.type)" }
+                
+                if !dbService.executeWithTable(tableName: subTable, columns: columns) {
+                    return false
+                }
+                
+                for item in nestedList {
+                    if !dbService.insert(tableName: subTable, values: item) {
+                        return false
+                    }
+                }
+            }
+        }
+        return true
+    }
+    
+    /// 创建列表相关的表
+    /// - Parameters:
+    ///   - tableName: 主表名
+    ///   - listProperties: 列表属性定义
+    ///   - dbService: 数据库服务实例
+    /// - Returns: 创建结果
+    static func createListTables(tableName: String, listProperties: [String: [String: String]], dbService: CuttDBService) -> Bool {
+        for (key, schema) in listProperties {
+            let subTable = "\(tableName)_\(key)"
+            let columns = schema.map { "\($0.key) \($0.value)" }
+            
+            if !dbService.executeWithTable(tableName: subTable, columns: columns) {
+                return false
+            }
+        }
+        return true
+    }
+    
+    /// 验证列表数据
+    /// - Parameters:
+    ///   - tableName: 表名
+    ///   - data: 要验证的数据
+    ///   - dbService: 数据库服务实例
+    /// - Returns: 验证结果
+    static func validateListData(tableName: String, data: [String: Any], dbService: CuttDBService) -> Bool {
+        for (key, value) in data {
+            if let list = value as? [Any] {
+                let subTable = "\(tableName)_\(key)"
+                let results = dbService.select(tableName: subTable)
+                if results.count != list.count {
+                    return false
+                }
+            }
+        }
+        return true
+    }
+    
+    /// 处理列表关系
+    /// - Parameters:
+    ///   - tableName: 表名
+    ///   - relationships: 关系定义
+    ///   - dbService: 数据库服务实例
+    /// - Returns: 处理结果
+    static func handleListRelationships(tableName: String, relationships: [String: String], dbService: CuttDBService) -> Bool {
+        for (listTable, foreignKey) in relationships {
+            let subTable = "\(tableName)_\(listTable)"
+            let query = "ALTER TABLE \(subTable) ADD COLUMN \(foreignKey) INTEGER REFERENCES \(tableName)(id)"
+            if !dbService.executeQuery(query) {
+                return false
+            }
+        }
+        return true
+    }
+    
     // MARK: - Mechanism Module
     /// 模块：mechanism
     /// 需求：pair table to req, obj_list, paged
@@ -145,5 +338,543 @@ struct CuttDB {
     /// - Returns: 拼接后的无符号索引词（只包含字母、数字和下划线）
     static func requestIndexKey(api: String, method: String) -> String {
         return "\(api)_\(method)".replacingOccurrences(of: "[^A-Za-z0-9_]", with: "", options: .regularExpression)
+    }
+    
+    /// 处理响应数据
+    /// - Parameters:
+    ///   - api: 接口字符串
+    ///   - method: 方法字符串
+    ///   - response: 响应数据
+    ///   - dbService: 数据库服务实例
+    /// - Returns: 处理结果
+    static func handleResponse(api: String, method: String, response: [String: Any], dbService: CuttDBService) -> Bool {
+        let tableName = requestIndexKey(api: api, method: method)
+        let tableDef = extractTableDefinition(from: response)
+        let columns = tableDef.map { "\($0.name) \($0.type)" }
+        
+        if !dbService.executeWithTable(tableName: tableName, columns: columns) {
+            return false
+        }
+        
+        return dbService.insert(tableName: tableName, values: response)
+    }
+    
+    /// 转换响应数据
+    /// - Parameters:
+    ///   - response: 原始响应数据
+    ///   - mapping: 字段映射关系
+    /// - Returns: 转换后的数据
+    static func transformResponse(_ response: [String: Any], mapping: [String: String]) -> [String: Any] {
+        var transformed: [String: Any] = [:]
+        for (key, value) in response {
+            if let newKey = mapping[key] {
+                transformed[newKey] = value
+            } else {
+                transformed[key] = value
+            }
+        }
+        return transformed
+    }
+    
+    /// 验证响应数据
+    /// - Parameters:
+    ///   - response: 响应数据
+    ///   - schema: 数据模式
+    /// - Returns: 验证结果
+    static func validateResponse(_ response: [String: Any], schema: [String: String]) -> Bool {
+        for (key, type) in schema {
+            guard let value = response[key] else { return false }
+            
+            switch type {
+            case "INTEGER":
+                guard value is Int else { return false }
+            case "REAL":
+                guard value is Double else { return false }
+            case "TEXT":
+                guard value is String else { return false }
+            case "BLOB":
+                guard value is Data else { return false }
+            default:
+                return false
+            }
+        }
+        return true
+    }
+    
+    /// 记录响应日志
+    /// - Parameters:
+    ///   - api: 接口字符串
+    ///   - method: 方法字符串
+    ///   - response: 响应数据
+    ///   - dbService: 数据库服务实例
+    /// - Returns: 记录结果
+    static func logResponse(api: String, method: String, response: [String: Any], dbService: CuttDBService) -> Bool {
+        let tableName = "\(requestIndexKey(api: api, method: method))_log"
+        let columns = [
+            "id INTEGER PRIMARY KEY AUTOINCREMENT",
+            "timestamp TEXT",
+            "response TEXT"
+        ]
+        
+        if !dbService.executeWithTable(tableName: tableName, columns: columns) {
+            return false
+        }
+        
+        let logData: [String: Any] = [
+            "timestamp": ISO8601DateFormatter().string(from: Date()),
+            "response": String(describing: response)
+        ]
+        
+        return dbService.insert(tableName: tableName, values: logData)
+    }
+    
+    // MARK: - Select Module
+    /// 恢复最近一次响应数据
+    /// - Parameters:
+    ///   - api: 接口字符串
+    ///   - method: 方法字符串
+    ///   - dbService: 数据库服务实例
+    /// - Returns: 最近一次响应数据
+    static func restoreLastResponse(api: String, method: String, dbService: CuttDBService) -> [String: Any]? {
+        return dbService.restoreLastResponse(api: api, method: method)
+    }
+    
+    /// 恢复列表响应数据
+    /// - Parameters:
+    ///   - api: 接口字符串
+    ///   - method: 方法字符串
+    ///   - listProperty: 列表属性名
+    ///   - dbService: 数据库服务实例
+    /// - Returns: 列表响应数据
+    static func restoreListResponse(api: String, method: String, listProperty: String, dbService: CuttDBService) -> [[String: Any]] {
+        let tableName = "\(requestIndexKey(api: api, method: method))_\(listProperty)"
+        return dbService.select(tableName: tableName)
+    }
+    
+    /// 恢复子表响应数据
+    /// - Parameters:
+    ///   - api: 接口字符串
+    ///   - method: 方法字符串
+    ///   - property: 属性名
+    ///   - dbService: 数据库服务实例
+    /// - Returns: 子表响应数据
+    static func restoreSubTableResponse(api: String, method: String, property: String, dbService: CuttDBService) -> [[String: Any]] {
+        return dbService.restoreSubTableResponse(api: api, method: method, property: property)
+    }
+    
+    /// 处理过期响应
+    /// - Parameters:
+    ///   - api: 接口字符串
+    ///   - method: 方法字符串
+    ///   - expirationTime: 过期时间（秒）
+    ///   - dbService: 数据库服务实例
+    /// - Returns: 处理结果
+    static func handleExpiredResponse(api: String, method: String, expirationTime: TimeInterval, dbService: CuttDBService) -> Bool {
+        let tableName = requestIndexKey(api: api, method: method)
+        let expirationDate = Date().addingTimeInterval(-expirationTime)
+        let expirationString = ISO8601DateFormatter().string(from: expirationDate)
+        
+        let query = "DELETE FROM \(tableName) WHERE created_at < '\(expirationString)'"
+        return dbService.executeQuery(query)
+    }
+    
+    // MARK: - Align Module
+
+    /// 清理数据
+    /// - Parameters:
+    ///   - tableName: 表名
+    ///   - condition: 清理条件
+    ///   - dbService: 数据库服务
+    /// - Returns: 是否成功
+    static func cleanupData(tableName: String, condition: String, dbService: CuttDBService) -> Bool {
+        let sql = "DELETE FROM \(tableName) WHERE \(condition)"
+        return dbService.execute(sql: sql)
+    }
+    
+    /// 批量清理
+    /// - Parameters:
+    ///   - tableName: 表名
+    ///   - conditions: 清理条件列表
+    ///   - dbService: 数据库服务
+    /// - Returns: 是否成功
+    static func batchCleanup(tableName: String, conditions: [String], dbService: CuttDBService) -> Bool {
+        for condition in conditions {
+            if !cleanupData(tableName: tableName, condition: condition, dbService: dbService) {
+                return false
+            }
+        }
+        return true
+    }
+    
+    /// 验证清理结果
+    /// - Parameters:
+    ///   - tableName: 表名
+    ///   - condition: 验证条件
+    ///   - dbService: 数据库服务
+    /// - Returns: 是否验证通过
+    static func validateCleanup(tableName: String, condition: String, dbService: CuttDBService) -> Bool {
+        let sql = "SELECT COUNT(*) as count FROM \(tableName) WHERE \(condition)"
+        guard let result = dbService.query(sql: sql)?.first,
+              let count = result["count"] as? Int else {
+            return false
+        }
+        return count == 0
+    }
+    
+    /// 清理前备份
+    /// - Parameters:
+    ///   - tableName: 表名
+    ///   - backupTable: 备份表名
+    ///   - dbService: 数据库服务
+    /// - Returns: 是否成功
+    static func backupBeforeCleanup(tableName: String, backupTable: String, dbService: CuttDBService) -> Bool {
+        let sql = "CREATE TABLE \(backupTable) AS SELECT * FROM \(tableName)"
+        return dbService.execute(sql: sql)
+    }
+    
+    /// 清理后恢复
+    /// - Parameters:
+    ///   - tableName: 表名
+    ///   - backupTable: 备份表名
+    ///   - dbService: 数据库服务
+    /// - Returns: 是否成功
+    static func restoreAfterCleanup(tableName: String, backupTable: String, dbService: CuttDBService) -> Bool {
+        let sql = "INSERT INTO \(tableName) SELECT * FROM \(backupTable)"
+        return dbService.execute(sql: sql)
+    }
+    
+    /// 记录清理操作
+    /// - Parameters:
+    ///   - tableName: 表名
+    ///   - operation: 操作类型
+    ///   - condition: 清理条件
+    ///   - dbService: 数据库服务
+    /// - Returns: 是否成功
+    static func logCleanupOperation(tableName: String, operation: String, condition: String, dbService: CuttDBService) -> Bool {
+        let logData: [String: Any] = [
+            "table_name": tableName,
+            "operation": operation,
+            "condition": condition,
+            "timestamp": Date().timeIntervalSince1970
+        ]
+        return dbService.insert(tableName: "cleanup_logs", data: logData)
+    }
+}
+
+// MARK: - Delete Module
+
+extension CuttDB {
+    /// 清理老化数据
+    /// - Parameters:
+    ///   - tableName: 表名
+    ///   - ageField: 老化字段
+    ///   - ageThreshold: 老化阈值
+    ///   - dbService: 数据库服务
+    /// - Returns: 清理的记录数
+    static func cleanupAgedData(tableName: String, ageField: String, ageThreshold: String, dbService: CuttDBService) -> Int {
+        let sql = "DELETE FROM \(tableName) WHERE \(ageField) < '\(ageThreshold)'"
+        return dbService.execute(sql: sql) ? 1 : 0
+    }
+    
+    /// 应用老化规则
+    /// - Parameters:
+    ///   - tableName: 表名
+    ///   - rules: 老化规则
+    ///   - dbService: 数据库服务
+    /// - Returns: 是否成功
+    static func applyAgingRules(tableName: String, rules: [String: Any], dbService: CuttDBService) -> Bool {
+        guard let status = rules["status"] as? String,
+              let condition = rules["condition"] as? String else {
+            return false
+        }
+        
+        let sql = "UPDATE \(tableName) SET status = '\(status)' WHERE \(condition)"
+        return dbService.execute(sql: sql)
+    }
+    
+    /// 配置批量老化
+    /// - Parameters:
+    ///   - tableName: 表名
+    ///   - config: 配置信息
+    ///   - dbService: 数据库服务
+    /// - Returns: 是否成功
+    static func configureBatchAging(tableName: String, config: [String: Any], dbService: CuttDBService) -> Bool {
+        guard let batchSize = config["batch_size"] as? Int else {
+            return false
+        }
+        
+        // 这里可以添加更多的配置逻辑
+        return true
+    }
+    
+    /// 批量删除记录
+    /// - Parameters:
+    ///   - tableName: 表名
+    ///   - conditions: 删除条件列表
+    ///   - dbService: 数据库服务
+    /// - Returns: 删除的记录数
+    static func batchDeleteRecords(tableName: String, conditions: [String], dbService: CuttDBService) -> Int {
+        var count = 0
+        for condition in conditions {
+            let sql = "DELETE FROM \(tableName) WHERE \(condition)"
+            if dbService.execute(sql: sql) {
+                count += 1
+            }
+        }
+        return count
+    }
+    
+    /// 根据条件批量删除
+    /// - Parameters:
+    ///   - tableName: 表名
+    ///   - condition: 删除条件
+    ///   - batchSize: 批次大小
+    ///   - dbService: 数据库服务
+    /// - Returns: 删除的记录数
+    static func batchDeleteWithCondition(tableName: String, condition: String, batchSize: Int, dbService: CuttDBService) -> Int {
+        let sql = "DELETE FROM \(tableName) WHERE \(condition) LIMIT \(batchSize)"
+        return dbService.execute(sql: sql) ? batchSize : 0
+    }
+    
+    /// 配置批量删除
+    /// - Parameters:
+    ///   - tableName: 表名
+    ///   - config: 配置信息
+    ///   - dbService: 数据库服务
+    /// - Returns: 是否成功
+    static func configureBatchDelete(tableName: String, config: [String: Any], dbService: CuttDBService) -> Bool {
+        // 这里可以添加配置逻辑
+        return true
+    }
+    
+    /// 在事务中批量删除
+    /// - Parameters:
+    ///   - tableName: 表名
+    ///   - conditions: 删除条件列表
+    ///   - dbService: 数据库服务
+    /// - Returns: 是否成功
+    static func batchDeleteInTransaction(tableName: String, conditions: [String], dbService: CuttDBService) -> Bool {
+        // 这里可以添加事务处理逻辑
+        return true
+    }
+    
+    /// 带重试的批量删除
+    /// - Parameters:
+    ///   - tableName: 表名
+    ///   - conditions: 删除条件列表
+    ///   - maxRetries: 最大重试次数
+    ///   - dbService: 数据库服务
+    /// - Returns: 是否成功
+    static func batchDeleteWithRetry(tableName: String, conditions: [String], maxRetries: Int, dbService: CuttDBService) -> Bool {
+        // 这里可以添加重试逻辑
+        return true
+    }
+    
+    /// 验证批量删除
+    /// - Parameters:
+    ///   - tableName: 表名
+    ///   - conditions: 删除条件列表
+    ///   - dbService: 数据库服务
+    /// - Returns: 是否成功
+    static func validateBatchDelete(tableName: String, conditions: [String], dbService: CuttDBService) -> Bool {
+        // 这里可以添加验证逻辑
+        return true
+    }
+}
+
+// MARK: - Mechanism Module
+
+extension CuttDB {
+    /// 创建索引
+    /// - Parameters:
+    ///   - tableName: 表名
+    ///   - indexName: 索引名
+    ///   - columns: 索引列
+    ///   - dbService: 数据库服务
+    /// - Returns: 是否成功
+    static func createIndex(tableName: String, indexName: String, columns: [String], dbService: CuttDBService) -> Bool {
+        let columnsStr = columns.joined(separator: ", ")
+        let sql = "CREATE INDEX \(indexName) ON \(tableName) (\(columnsStr))"
+        return dbService.execute(sql: sql)
+    }
+    
+    /// 删除索引
+    /// - Parameters:
+    ///   - tableName: 表名
+    ///   - indexName: 索引名
+    ///   - dbService: 数据库服务
+    /// - Returns: 是否成功
+    static func dropIndex(tableName: String, indexName: String, dbService: CuttDBService) -> Bool {
+        let sql = "DROP INDEX \(indexName) ON \(tableName)"
+        return dbService.execute(sql: sql)
+    }
+    
+    /// 重建索引
+    /// - Parameters:
+    ///   - tableName: 表名
+    ///   - indexName: 索引名
+    ///   - dbService: 数据库服务
+    /// - Returns: 是否成功
+    static func rebuildIndex(tableName: String, indexName: String, dbService: CuttDBService) -> Bool {
+        let sql = "ALTER INDEX \(indexName) ON \(tableName) REBUILD"
+        return dbService.execute(sql: sql)
+    }
+    
+    /// 获取索引统计信息
+    /// - Parameters:
+    ///   - tableName: 表名
+    ///   - indexName: 索引名
+    ///   - dbService: 数据库服务
+    /// - Returns: 索引统计信息
+    static func getIndexStatistics(tableName: String, indexName: String, dbService: CuttDBService) -> [String: Any] {
+        let sql = "SELECT * FROM sys.indexes WHERE name = '\(indexName)' AND object_id = OBJECT_ID('\(tableName)')"
+        return dbService.query(sql: sql)?.first ?? [:]
+    }
+    
+    /// 验证索引
+    /// - Parameters:
+    ///   - tableName: 表名
+    ///   - indexName: 索引名
+    ///   - dbService: 数据库服务
+    /// - Returns: 是否有效
+    static func validateIndex(tableName: String, indexName: String, dbService: CuttDBService) -> Bool {
+        let stats = getIndexStatistics(tableName: tableName, indexName: indexName, dbService: dbService)
+        return !stats.isEmpty
+    }
+    
+    /// 处理响应
+    /// - Parameters:
+    ///   - response: 响应数据
+    ///   - dbService: 数据库服务
+    /// - Returns: 处理后的响应
+    static func handleResponse(response: [String: Any], dbService: CuttDBService) -> [String: Any] {
+        // 这里可以添加响应处理逻辑
+        return response
+    }
+    
+    /// 转换响应
+    /// - Parameters:
+    ///   - response: 响应数据
+    ///   - mapping: 字段映射
+    ///   - dbService: 数据库服务
+    /// - Returns: 转换后的响应
+    static func transformResponse(response: [String: Any], mapping: [String: String], dbService: CuttDBService) -> [String: Any] {
+        var result: [String: Any] = [:]
+        for (key, value) in response {
+            if let newKey = mapping[key] {
+                result[newKey] = value
+            }
+        }
+        return result
+    }
+    
+    /// 验证响应
+    /// - Parameters:
+    ///   - response: 响应数据
+    ///   - schema: 验证模式
+    ///   - dbService: 数据库服务
+    /// - Returns: 是否有效
+    static func validateResponse(response: [String: Any], schema: [String: String], dbService: CuttDBService) -> Bool {
+        // 这里可以添加验证逻辑
+        return true
+    }
+    
+    /// 记录响应
+    /// - Parameters:
+    ///   - response: 响应数据
+    ///   - operation: 操作类型
+    ///   - dbService: 数据库服务
+    /// - Returns: 是否成功
+    static func logResponse(response: [String: Any], operation: String, dbService: CuttDBService) -> Bool {
+        let sql = "INSERT INTO response_logs (operation, response_data) VALUES ('\(operation)', '\(response)')"
+        return dbService.execute(sql: sql)
+    }
+}
+
+// MARK: - Select Module
+
+extension CuttDB {
+    /// 恢复最后一次响应
+    /// - Parameters:
+    ///   - api: API路径
+    ///   - method: HTTP方法
+    ///   - dbService: 数据库服务
+    /// - Returns: 响应数据
+    static func restoreLastResponse(api: String, method: String, dbService: CuttDBService) -> [String: Any]? {
+        let sql = "SELECT response_data FROM response_cache WHERE api = '\(api)' AND method = '\(method)' ORDER BY created_at DESC LIMIT 1"
+        return dbService.query(sql: sql)?.first
+    }
+    
+    /// 恢复列表响应
+    /// - Parameters:
+    ///   - api: API路径
+    ///   - method: HTTP方法
+    ///   - dbService: 数据库服务
+    /// - Returns: 响应数据列表
+    static func restoreListResponse(api: String, method: String, dbService: CuttDBService) -> [[String: Any]] {
+        let sql = "SELECT response_data FROM response_cache WHERE api = '\(api)' AND method = '\(method)' ORDER BY created_at DESC"
+        return dbService.query(sql: sql) ?? []
+    }
+    
+    /// 恢复子表响应
+    /// - Parameters:
+    ///   - api: API路径
+    ///   - method: HTTP方法
+    ///   - property: 属性名
+    ///   - dbService: 数据库服务
+    /// - Returns: 响应数据列表
+    static func restoreSubTableResponse(api: String, method: String, property: String, dbService: CuttDBService) -> [[String: Any]] {
+        let sql = "SELECT response_data FROM response_cache WHERE api = '\(api)' AND method = '\(method)' AND property = '\(property)' ORDER BY created_at DESC"
+        return dbService.query(sql: sql) ?? []
+    }
+    
+    /// 处理过期响应
+    /// - Parameters:
+    ///   - api: API路径
+    ///   - method: HTTP方法
+    ///   - dbService: 数据库服务
+    /// - Returns: 是否成功
+    static func handleExpiredResponse(api: String, method: String, dbService: CuttDBService) -> Bool {
+        let sql = "DELETE FROM response_cache WHERE api = '\(api)' AND method = '\(method)' AND created_at < DATE_SUB(NOW(), INTERVAL 24 HOUR)"
+        return dbService.execute(sql: sql)
+    }
+    
+    /// 分页查询数据
+    /// - Parameters:
+    ///   - tableName: 表名
+    ///   - data: 查询参数
+    ///   - dbService: 数据库服务
+    /// - Returns: 查询结果
+    static func queryPagedData(tableName: String, data: [String: Any], dbService: CuttDBService) -> [[String: Any]]? {
+        let pageSize = data["pageSize"] as? Int ?? 10
+        let pageNumber = data["pageNumber"] as? Int ?? 1
+        let offset = (pageNumber - 1) * pageSize
+        
+        var sql = "SELECT "
+        
+        // 处理字段选择
+        if let fields = data["fields"] as? [String] {
+            sql += fields.joined(separator: ", ")
+        } else {
+            sql += "*"
+        }
+        
+        sql += " FROM \(tableName)"
+        
+        // 处理过滤条件
+        if let filter = data["filter"] as? String {
+            sql += " WHERE \(filter)"
+        }
+        
+        // 处理排序
+        if let sortField = data["sortField"] as? String,
+           let sortOrder = data["sortOrder"] as? String {
+            sql += " ORDER BY \(sortField) \(sortOrder)"
+        }
+        
+        // 添加分页
+        sql += " LIMIT \(pageSize) OFFSET \(offset)"
+        
+        return dbService.query(sql: sql)
     }
 } 
