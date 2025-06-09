@@ -7,6 +7,7 @@
 
 import Foundation
 import XCTest
+@testable import CuttDB
 
 class AlignModule_UpgradeTest: XCTestCase {
     private var db: CuttDB!

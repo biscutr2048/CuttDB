@@ -5,25 +5,136 @@
 //  Created by BISCUTR@QQ.COM on 2025/6/9.
 //
 
-import Foundation
+import XCTest
 
-/// 测试用例基类
-class CuttDBTestCase {
-    func runTests() {
-        fatalError("Subclasses must implement runTests()")
+/// Base test case class for all CuttDB tests
+class CuttDBTestCase: XCTestCase {
+    /// Database instance for testing
+    var db: CuttDB!
+    /// Mock service for testing
+    var mockService: MockCuttDBService!
+    
+    override func setUp() {
+        super.setUp()
+        let config = CuttDBServiceConfiguration(dbPath: ":memory:")
+        mockService = MockCuttDBService()
+        db = CuttDB(configuration: config)
+    }
+    
+    override func tearDown() {
+        db = nil
+        mockService = nil
+        super.tearDown()
+    }
+    
+    /// Required initializer for XCTestCase
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+    }
+    
+    /// Required initializer for XCTestCase
+    required override init() {
+        super.init()
     }
 }
 
-/// 测试模块枚举
+/// Test module enum for organizing tests
 enum TestModule: String, CaseIterable {
     case create = "Create"
     case select = "Select"
     case insertUpdate = "InsertUpdate"
     case delete = "Delete"
     case align = "Align"
-    case listProperties = "ListProperties"
     case mechanism = "Mechanism"
+    
+    var testClasses: [XCTestCase.Type] {
+        switch self {
+        case .create:
+            return [
+                CreateModule_TableDefinitionTest.self,
+                CreateModule_SubTableTest.self,
+                CreateModule_AutoCreateTest.self
+            ]
+        case .select:
+            return [
+                SelectModule_OfflineTest.self,
+                SelectModule_PagedQueryTest.self
+            ]
+        case .insertUpdate:
+            return [
+                InsertUpdateModule_SQLTest.self,
+                InsertUpdateModule_TransactionTest.self
+            ]
+        case .delete:
+            return [
+                DeleteModule_AgingTest.self,
+                DeleteModule_BatchTest.self
+            ]
+        case .align:
+            return [
+                AlignModule_UpgradeTest.self,
+                AlignModule_CleanupTest.self
+            ]
+        case .mechanism:
+            return [
+                MechanismModule_IndexTest.self,
+                MechanismModule_ResponseTest.self
+            ]
+        }
+    }
 }
+
+/// Test manager for running all tests
+class CuttDBTestManager {
+    static let shared = CuttDBTestManager()
+    
+    private init() {}
+    
+    /// Run all tests for a specific module
+    func runTests(for module: TestModule) {
+        print("Running tests for module: \(module.rawValue)")
+        for testClass in module.testClasses {
+            runTests(for: testClass)
+        }
+    }
+    
+    /// Run all tests for a specific test class
+    func runTests(for testClass: XCTestCase.Type) {
+        print("Running tests for class: \(testClass)")
+        let testSuite = XCTestSuite(name: "\(testClass) Suite")
+        let testCase = testClass.init()
+        testSuite.addTest(testCase)
+        testSuite.run()
+    }
+    
+    /// Run all tests
+    func runAllTests() {
+        print("Running all tests")
+        for module in TestModule.allCases {
+            runTests(for: module)
+        }
+    }
+}
+
+#if DEBUG
+/// Test class for running all tests
+class CuttDBTestRunner: XCTestCase {
+    /// Run all tests
+    func testAll() {
+        CuttDBTestManager.shared.runAllTests()
+    }
+    
+    /// Run tests for a specific module
+    func testModule(_ module: TestModule) {
+        CuttDBTestManager.shared.runTests(for: module)
+    }
+    
+    /// Run tests for a specific test class
+    func testClass(_ testClass: XCTestCase.Type) {
+        CuttDBTestManager.shared.runTests(for: testClass)
+    }
+}
+#endif
 
 /// 表定义测试
 class CreateModule_TableDefinitionTest: CuttDBTestCase {
@@ -102,13 +213,6 @@ class AlignModule_CleanupTest: CuttDBTestCase {
     }
 }
 
-/// 复杂列表测试
-class ListPropertiesModule_ComplexTest: CuttDBTestCase {
-    override func runTests() {
-        // 实现复杂列表测试
-    }
-}
-
 /// 索引测试
 class MechanismModule_IndexTest: CuttDBTestCase {
     override func runTests() {
@@ -120,115 +224,6 @@ class MechanismModule_IndexTest: CuttDBTestCase {
 class MechanismModule_ResponseTest: CuttDBTestCase {
     override func runTests() {
         // 实现响应测试
-    }
-}
-
-/// 测试管理器
-class CuttDBTest {
-    /// 运行所有测试
-    static func runAllTests() {
-        print("\n=== 开始运行所有测试 ===\n")
-        
-        for module in TestModule.allCases {
-            runTestsForModule(module)
-        }
-        
-        print("\n=== 所有测试完成 ===\n")
-    }
-    
-    /// 运行指定模块的测试
-    static func runTestsForModule(_ module: TestModule) {
-        print("\n=== 运行\(module.rawValue)模块测试 ===")
-        
-        switch module {
-        case .create:
-            runCreateModuleTests()
-        case .select:
-            runSelectModuleTests()
-        case .insertUpdate:
-            runInsertUpdateModuleTests()
-        case .delete:
-            runDeleteModuleTests()
-        case .align:
-            runAlignModuleTests()
-        case .listProperties:
-            runListPropertiesModuleTests()
-        case .mechanism:
-            runMechanismModuleTests()
-        }
-    }
-    
-    /// 运行单个测试
-    static func runTest(_ testName: String) {
-        print("\n=== 运行测试: \(testName) ===")
-        
-        // 根据测试名称运行对应的测试
-        switch testName {
-        case "CreateModule_TableDefinitionTest":
-            CreateModule_TableDefinitionTest().runTests()
-        case "CreateModule_SubTableTest":
-            CreateModule_SubTableTest().runTests()
-        case "SelectModule_OfflineTest":
-            SelectModule_OfflineTest().runTests()
-        case "SelectModule_PagedQueryTest":
-            SelectModule_PagedQueryTest().runTests()
-        case "InsertUpdateModule_SQLTest":
-            InsertUpdateModule_SQLTest().runTests()
-        case "InsertUpdateModule_TransactionTest":
-            InsertUpdateModule_TransactionTest().runTests()
-        case "DeleteModule_AgingTest":
-            DeleteModule_AgingTest().runTests()
-        case "DeleteModule_BatchTest":
-            DeleteModule_BatchTest().runTests()
-        case "AlignModule_UpgradeTest":
-            AlignModule_UpgradeTest().runTests()
-        case "AlignModule_CleanupTest":
-            AlignModule_CleanupTest().runTests()
-        case "ListPropertiesModule_ComplexTest":
-            ListPropertiesModule_ComplexTest().runTests()
-        case "MechanismModule_IndexTest":
-            MechanismModule_IndexTest().runTests()
-        case "MechanismModule_ResponseTest":
-            MechanismModule_ResponseTest().runTests()
-        default:
-            print("未知的测试名称: \(testName)")
-        }
-    }
-    
-    // MARK: - 私有辅助方法
-    
-    private static func runCreateModuleTests() {
-        CreateModule_TableDefinitionTest().runTests()
-        CreateModule_SubTableTest().runTests()
-    }
-    
-    private static func runSelectModuleTests() {
-        SelectModule_OfflineTest().runTests()
-        SelectModule_PagedQueryTest().runTests()
-    }
-    
-    private static func runInsertUpdateModuleTests() {
-        InsertUpdateModule_SQLTest().runTests()
-        InsertUpdateModule_TransactionTest().runTests()
-    }
-    
-    private static func runDeleteModuleTests() {
-        DeleteModule_AgingTest().runTests()
-        DeleteModule_BatchTest().runTests()
-    }
-    
-    private static func runAlignModuleTests() {
-        AlignModule_UpgradeTest().runTests()
-        AlignModule_CleanupTest().runTests()
-    }
-    
-    private static func runListPropertiesModuleTests() {
-        ListPropertiesModule_ComplexTest().runTests()
-    }
-    
-    private static func runMechanismModuleTests() {
-        MechanismModule_IndexTest().runTests()
-        MechanismModule_ResponseTest().runTests()
     }
 }
 

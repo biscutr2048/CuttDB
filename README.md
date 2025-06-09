@@ -98,7 +98,13 @@ a sqlite3 access automation model
 ---
 
 ## Testing
-CuttDB employs a layered testing architecture to ensure code quality and reliability:
+CuttDB employs a layered testing architecture to ensure code quality and reliability. All tests are integrated within the project structure under the `CuttDB/Tests` directory.
+
+### Test Structure
+- `CuttDB/Tests/Core/`: Core functionality tests
+- `CuttDB/Tests/Modules/`: Module-specific tests
+- `CuttDB/Tests/TestInfrastructure/`: Test infrastructure and utilities
+- `CuttDB/Tests/Utils/`: Test utilities and helpers
 
 ### Test Architecture
 - Service Layer Tests: Validates specific implementations of `CuttDBService`
@@ -118,6 +124,7 @@ CuttDB employs a layered testing architecture to ensure code quality and reliabi
 - Uses `CuttDBTest` for unified test management
 - Supports both individual module testing and full test suite execution
 - Provides detailed test result output
+- All tests are run as part of the Xcode project build process
 
 
 ---
